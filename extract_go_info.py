@@ -100,70 +100,251 @@ EXCLUDE_PATTERNS = [
     "github.com/bangwork/bang-api/app/utils.GenerateNewDescRich",
 ]
 
+PROJECT_COMMON_EXCLUDE_PATTERNS = [
+    "github.com/bangwork/bang-api/app/models/component.*",
+    "github.com/bangwork/bang-api/app/models/container.*",
+    "github.com/bangwork/bang-api/app/models/dashboard.*",
+    "github.com/bangwork/bang-api/app/models/filter.*",
+    "github.com/bangwork/bang-api/app/models/project.*",
+    "github.com/bangwork/bang-api/app/models/report.*",
+    "github.com/bangwork/bang-api/app/models/role.*",
+    "github.com/bangwork/bang-api/app/models/sprint.*",
+    "github.com/bangwork/bang-api/app/services/amqp/project.*",
+    "github.com/bangwork/bang-api/app/services/card.*",
+    "github.com/bangwork/bang-api/app/services/card/carddelegates.*",
+    "github.com/bangwork/bang-api/app/services/common/container.*",
+    "github.com/bangwork/bang-api/app/services/common/field/cache.*",
+    "github.com/bangwork/bang-api/app/services/common/filter.*",
+    "github.com/bangwork/bang-api/app/services/common/sprint.*",
+    "github.com/bangwork/bang-api/app/services/component.*",
+    "github.com/bangwork/bang-api/app/services/component/helper.*",
+    "github.com/bangwork/bang-api/app/services/container.*",
+    "github.com/bangwork/bang-api/app/services/container/field.*",
+    "github.com/bangwork/bang-api/app/services/filter.*",
+    "github.com/bangwork/bang-api/app/services/project.*",
+    "github.com/bangwork/bang-api/app/services/project/archive.*",
+    "github.com/bangwork/bang-api/app/services/project/field.*",
+    "github.com/bangwork/bang-api/app/services/project/status.*",
+    "github.com/bangwork/bang-api/app/services/report.*",
+    "github.com/bangwork/bang-api/app/services/report/project.*",
+    "github.com/bangwork/bang-api/app/services/role.*",
+    "github.com/bangwork/bang-api/app/utils.CheckTeamAllowCopyProject",
+]
+
 MODULE_EXTRA_EXCLUDE_MAP = {
-    "app/services/filter": ["github.com/bangwork/bang-api/app/models/filter.*"],
-    "app/services/sprint": [
+    "app/services/filter": PROJECT_COMMON_EXCLUDE_PATTERNS + ["github.com/bangwork/bang-api/app/models/filter.*"],
+    "app/services/sprint": PROJECT_COMMON_EXCLUDE_PATTERNS + [
         "github.com/bangwork/bang-api/app/models/sprint.*",
         "github.com/bangwork/bang-api/app/models/pipeline.*",
         "github.com/bangwork/bang-api/app/services/pipeline.*",
         "github.com/bangwork/bang-api/app/services/common/sprint.*",
         "github.com/bangwork/bang-api/app/models/version.*",
     ],
-    "app/services/component": [
+    "app/services/component": PROJECT_COMMON_EXCLUDE_PATTERNS + [
+        "github.com/bangwork/bang-api/app/models/component.*",
         "github.com/bangwork/bang-api/app/services/component/object.*",
         "github.com/bangwork/bang-api/app/services/component/todo.*",
         "github.com/bangwork/bang-api/app/services/common/component.*",
         "github.com/bangwork/bang-api/app/services/component/base.*",
     ],
-    "app/services/rank": [
+    "app/services/rank": PROJECT_COMMON_EXCLUDE_PATTERNS + [
         "github.com/bangwork/bang-api/app/models/rank.*"
     ],
-    "app/services/dashboard": [
+    "app/services/dashboard": PROJECT_COMMON_EXCLUDE_PATTERNS + [
         "github.com/bangwork/bang-api/app/models/dashboard.*"
     ],
-    "app/services/report": [
+    "app/services/report": PROJECT_COMMON_EXCLUDE_PATTERNS + [
         "github.com/bangwork/bang-api/app/models/report.*",
         "github.com/bangwork/bang-api/app/models/report/generators.*",
         "github.com/bangwork/bang-api/app/services/manhour/report.*",
         "github.com/bangwork/bang-api/app/services/report.*",
     ],
-    "app/services/project": [
-        "github.com/bangwork/bang-api/app/services/component/helper.*",
+    "app/services/project": PROJECT_COMMON_EXCLUDE_PATTERNS +[
         "github.com/bangwork/bang-api/app/models/project.*",
+        "github.com/bangwork/bang-api/app/services/amqp/project.*",
+        "github.com/bangwork/bang-api/app/services/project.*",
+    ],
+    # role
+    "app/services/role": PROJECT_COMMON_EXCLUDE_PATTERNS + [
         "github.com/bangwork/bang-api/app/models/role.*",
-        "github.com/bangwork/bang-api/app/models/component.*",
-        "github.com/bangwork/bang-api/app/utils.CheckTeamAllowCopyProject",
     ]
 }
 
-FUNCTION_CALL_MODULE_MAP = {
-    "github.com/bangwork/bang-api/app/services/common/container.MustCheckContainer": "permission",
-    "github.com/bangwork/bang-api/app/services/common/container.MustCheckOne": "permission",
-    "github.com/bangwork/bang-api/app/services/common.MustGetSprint": "permission",
-    "github.com/bangwork/bang-api/app/services/project/archive.CheckUnknownArchiveProjectPermission": "project",
-    "github.com/bangwork/bang-api/app/services/devops/webhook.AddCommitStats": "devops",
-    "github.com/bangwork/bang-api/app/core/task/types.GetFinalRelations": "task",
-    "github.com/bangwork/bang-api/app/models/report/generators/cache.ClearSprintCacheBySprintUUID": "report",
-    "github.com/bangwork/bang-api/app/utils/i18n/render.ReplacePlaceholder": "i18n",
-    "github.com/bangwork/bang-api/app/models/space.IsExistSpaceUUID": "wiki",
-    "github.com/bangwork/bang-api/app/services/common/utils.ConstructComponentCustomLanguangeKey": "custom_language",
-    "github.com/bangwork/bang-api/app/services/common/container.MustCheckComponent": "permission",
-    "github.com/bangwork/bang-api/app/services/common.MustGetProjectIssueType": "permission",
-    "github.com/bangwork/bang-api/app/services/common/utils.BuildComponentCustomLanguage": "custom_language",
-    "github.com/bangwork/bang-api/app/services/common/utils.MapProjectTaskStatusCategory": "task",
-    "github.com/bangwork/bang-api/app/services/common/utils.MapSprintTaskStatusCategory": "task",
-    "github.com/bangwork/bang-api/app/services/common.MustGetProject": "permission",
-    "github.com/bangwork/bang-api/app/services/common.MustManageIssueTypeScope": "permission",
-    "github.com/bangwork/bang-api/app/services/common.MustGetProjectIssueTypeScope": "permission",
-    "github.com/bangwork/bang-api/app/utils.ListSamplePages": "wiki",
-    "github.com/bangwork/bang-api/app/services/layout/redis.UpdateLayoutRelatedScopeStamp": "layout",
-    "github.com/bangwork/bang-api/app/services/task/common.BuildTasksCommonSystemFieldValues": "task",
-    "github.com/bangwork/bang-api/app/services/component/helper.DeleteUserViewByFilter": "component",
-    "github.com/bangwork/bang-api/app/services/component/helper.UpdateUserViewByFilter": "component",
-    "github.com/bangwork/bang-api/app/services/component/helper.AddUserViewByFilter": "component",
+# 要把最具体的放在后面，然后程序里倒序遍历
+# 值数组的第一个元素是模块，第二个元素是子模块
+FUNCTION_CALL_MODULE_SUBMODULE_PATTERN_MAP = {
+    "github.com/bangwork/bang-api/app/utils/i18n.*": ["i18n", ""],
+    "github.com/bangwork/bang-api/app/models/notice/webhook_setting.*": ["notice", "webhook_setting"],
+    "github.com/bangwork/bang-api/app/models/deliverable.*": ["ppmtask", "deliverable"],
+    "github.com/bangwork/bang-api/app/models/testcase.*": ["testcase", ""],
+    "github.com/bangwork/bang-api/app/models/devops.*": ["devops", ""],
+    "github.com/bangwork/bang-api/app/models/task.*": ["task", ""],
+    "github.com/bangwork/bang-api/app/utils/app_platform.*": ["app_platform", ""],
+    "github.com/bangwork/bang-api/app/services/amqp/gantt.*": ["ppmtask", "gantt"],
+    "github.com/bangwork/bang-api/app/models/template.*": ["template", ""],
+    "github.com/bangwork/bang-api/app/services/card/carddelegates.*": ["project", "carddelegates"],
+    "github.com/bangwork/bang-api/app/services/report/project.*": ["project", "report"],
+    "github.com/bangwork/bang-api/app/models/sprint.*": ["project", "sprint"],
+    "github.com/bangwork/bang-api/app/services/custom_language.*": ["i18n", ""],
+    "github.com/bangwork/bang-api/app/services/plugin-platform/abilities/implement/project_custom_component.*": [
+        "plugin", ""],
+    "github.com/bangwork/bang-api/app/services/layout/issuetype.*": ["task", "issuetype"],
+    "github.com/bangwork/bang-api/app/services/plugin-platform/abilities/implement/item_handler.*": ["plugin",
+                                                                                                     ""],
+    "github.com/bangwork/bang-api/app/models/notice/webhook_filter.*": ["notice", "webhook_filter"],
+    "github.com/bangwork/bang-api/app/models/manhour.*": ["manhour", ""],
+    "github.com/bangwork/bang-api/app/models/plugin.*": ["plugin", ""],
+    "github.com/bangwork/bang-api/app/services/common/status.*": ["task", "status"],
+    "github.com/bangwork/bang-api/app/models/project.*": ["project", ""],
+    "github.com/bangwork/bang-api/app/services/task.*": ["task", ""],
+    "github.com/bangwork/bang-api/app/models/tabconfig.*": ["task", "tabconfig"],
+    "github.com/bangwork/bang-api/app/services/container.*": ["project", "container"],
+    "github.com/bangwork/bang-api/app/models/team.*": ["team", ""],
+    "github.com/bangwork/bang-api/app/services/project/field.*": ["project", "project_field"],
+    "github.com/bangwork/bang-api/app/models/custom_language.*": ["i18n", ""],
+    "github.com/bangwork/bang-api/app/models/field.*": ["task", "field"],
+    "github.com/bangwork/bang-api/app/models/component.*": ["project", "component"],
+    "github.com/bangwork/bang-api/app/models/message.*": ["message", ""],
+    "github.com/bangwork/bang-api/app/services/common/container.*": ["project", "container"],
+    "github.com/bangwork/bang-api/app/models/userguide.*": ["userguide", ""],
+    "github.com/bangwork/bang-api/app/models/objectlink.*": ["task", "objectlink"],
+    "github.com/bangwork/bang-api/app/models/objectlinktype.*": ["task", "objectlinktype"],
+    "github.com/bangwork/bang-api/app/models/auth.*": ["auth", ""],
+    "github.com/bangwork/bang-api/app/models/layout_field.*": ["task", "layout_field"],
+    "github.com/bangwork/bang-api/app/services/issuetype.*": ["task", "issuetype"],
+    "github.com/bangwork/bang-api/app/services/noticeconfig.*": ["notice", ""],
+    "github.com/bangwork/bang-api/app/models/role.*": ["project", "role"],
+    "github.com/bangwork/bang-api/app/services/common/workorder.*": ["task", "workorder"],
+    "github.com/bangwork/bang-api/app/services/filter.*": ["project", "filter"],
+    "github.com/bangwork/bang-api/app/models/report.*": ["project", "report"],
+    "github.com/bangwork/bang-api/app/services/role.*": ["project", "role"],
+    "github.com/bangwork/bang-api/app/models/setting.*": ["setting", ""],
+    "github.com/bangwork/bang-api/app/models/noticerules.*": ["notice", ""],
+    "github.com/bangwork/bang-api/app/services/lua.*": ["lua", ""],
+    "github.com/bangwork/bang-api/app/services/common/stamp.*": ["stamp", ""],
+    "github.com/bangwork/bang-api/app/models/workflow.*": ["task", "workflow"],
+    "github.com/bangwork/bang-api/app/services/container/field.*": ["project", ""],
+    "github.com/bangwork/bang-api/app/services/common/field/cache.*": ["project", ""],
+    "github.com/bangwork/bang-api/app/services/objectlinktype.*": ["task", "objectlinktype"],
+    "github.com/bangwork/bang-api/app/models/container.*": ["project", "container"],
+    "github.com/bangwork/bang-api/app/models/bot.*": ["user", "bot"],
+    "github.com/bangwork/bang-api/app/services/message.*": ["message", ""],
+    "github.com/bangwork/bang-api/app/services/permission.*": ["permission", ""],
+    "github.com/bangwork/bang-api/app/models/kanban.*": ["kanban", ""],
+    "github.com/bangwork/bang-api/app/models/user.*": ["user", ""],
+    "github.com/bangwork/bang-api/app/services/component.*": ["project", "component"],
+    "github.com/bangwork/bang-api/app/services/push.*": ["push", ""],
+    "github.com/bangwork/bang-api/app/models/product.*": ["product", ""],
+    "github.com/bangwork/bang-api/app/services/environment.*": ["environment", ""],
+    "github.com/bangwork/bang-api/app/models/noticeconfig.*": ["notice", ""],
+    "github.com/bangwork/bang-api/app/services/project.*": ["project", ""],
+    "github.com/bangwork/bang-api/app/services/userdomain.*": ["user", "userdomain"],
+    "github.com/bangwork/bang-api/app/services/workflow.*": ["task", "workflow"],
+    "github.com/bangwork/bang-api/app/models/taskrelation.*": ["task", "taskrelation"],
+    "github.com/bangwork/bang-api/app/models/dashboard.*": ["project", "dashboard"],
+    "github.com/bangwork/bang-api/app/services/card.*": ["project", "card"],
+    "github.com/bangwork/bang-api/app/models/ganttchart.*": ["ppmtask", "ganttchart"],
+    "github.com/bangwork/bang-api/app/services/common/userdomain.*": ["user", "userdomain"],
+    "github.com/bangwork/bang-api/app/utils/constraint.*": ["constraint", ""],
+    "github.com/bangwork/bang-api/app/models/milestone.*": ["ppmtask", "milestone"],
+    "github.com/bangwork/bang-api/app/services/permissionrule.*": ["permission", ""],
+    "github.com/bangwork/bang-api/app/services/manhour.*": ["manhour", ""],
+    "github.com/bangwork/bang-api/app/models/issue_type_scope_field_constraint.*": ["task",
+                                                                                    "issue_type_scope_field_constraint"],
+    "github.com/bangwork/bang-api/app/services/common/filter.*": ["project", "filter"],
+    "github.com/bangwork/bang-api/app/models/importer.*": ["importer", ""],
+    "github.com/bangwork/bang-api/app/models/program.*": ["program", ""],
+    "github.com/bangwork/bang-api/app/services/common/app_platform.*": ["app_platform", ""],
+    "github.com/bangwork/bang-api/app/models/layout.*": ["task", "layout"],
+    "github.com/bangwork/bang-api/app/services/objectlink.*": ["task", "objectlink"],
+    "github.com/bangwork/bang-api/app/core/task.*": ["task", ""],
+    "github.com/bangwork/bang-api/app/services/common/sprint.*": ["project", "sprint"],
+    "github.com/bangwork/bang-api/app/services/common/issuetype.*": ["task", "issuetype"],
+    "github.com/bangwork/bang-api/app/services/common/field.*": ["task", "field"],
+    "github.com/bangwork/bang-api/app/services/common/template.*": ["task", "template"],
+    "github.com/bangwork/bang-api/app/models/activity.*": ["ppmtask", ""],
+    "github.com/bangwork/bang-api/app/services/report.*": ["project", "report"],
+    "github.com/bangwork/bang-api/app/services/amqp/project.*": ["project", ""],
+    "github.com/bangwork/bang-api/app/services/issuetype/trigger.*": ["task", "trigger"],
+    "github.com/bangwork/bang-api/app/utils/wikiutils.*": ["wiki", ""],
+    "github.com/bangwork/bang-api/app/models/ppmtask.*": ["ppmtask", ""],
+    "github.com/bangwork/bang-api/app/models/status.*": ["task", "status"],
+    "github.com/bangwork/bang-api/app/models/resource.*": ["resource", ""],
+    "github.com/bangwork/bang-api/app/services/project/status.*": ["project", "sprint"],
+    "github.com/bangwork/bang-api/app/models/filter.*": ["project", "filter"],
+    "github.com/bangwork/bang-api/app/services/eventbus.*": ["eventbus", ""],
+    "github.com/bangwork/bang-api/app/models/issuetype.*": ["task", "issuetype"],
+    "github.com/bangwork/bang-api/scripts/issuetype/model/issuetype.*": ["task", "issuetype"],
+
+    "github.com/bangwork/bang-api/app/services/common/container.MustCheckContainer": ["permission", ""],
+    "github.com/bangwork/bang-api/app/services/common/container.MustCheckOne": ["permission", ""],
+    "github.com/bangwork/bang-api/app/services/common.MustGetSprint": ["permission", ""],
+    "github.com/bangwork/bang-api/app/services/project/archive.CheckUnknownArchiveProjectPermission": ["project", ""],
+    "github.com/bangwork/bang-api/app/services/devops/webhook.AddCommitStats": ["devops", ""],
+    "github.com/bangwork/bang-api/app/core/task/types.GetFinalRelations": ["task", ""],
+    "github.com/bangwork/bang-api/app/models/report/generators/cache.ClearSprintCacheBySprintUUID": ["report", ""],
+    "github.com/bangwork/bang-api/app/utils/i18n/render.ReplacePlaceholder": ["i18n", ""],
+    "github.com/bangwork/bang-api/app/models/space.IsExistSpaceUUID": ["wiki", ""],
+    "github.com/bangwork/bang-api/app/services/common/utils.ConstructComponentCustomLanguangeKey": ["i18n",
+                                                                                                    ""],
+    "github.com/bangwork/bang-api/app/services/common/container.MustCheckComponent": ["permission", ""],
+    "github.com/bangwork/bang-api/app/services/common.MustGetProjectIssueType": ["permission", ""],
+    "github.com/bangwork/bang-api/app/services/common/utils.BuildComponentCustomLanguage": ["i18n", ""],
+    "github.com/bangwork/bang-api/app/services/common/utils.MapProjectTaskStatusCategory": ["task", ""],
+    "github.com/bangwork/bang-api/app/services/common/utils.MapSprintTaskStatusCategory": ["task", ""],
+    "github.com/bangwork/bang-api/app/services/common.MustGetProject": ["permission", ""],
+    "github.com/bangwork/bang-api/app/services/common.MustManageIssueTypeScope": ["permission", ""],
+    "github.com/bangwork/bang-api/app/services/common.MustGetProjectIssueTypeScope": ["permission", ""],
+    "github.com/bangwork/bang-api/app/utils.ListSamplePages": ["wiki", ""],
+    "github.com/bangwork/bang-api/app/services/layout/redis.UpdateLayoutRelatedScopeStamp": ["layout", ""],
+    "github.com/bangwork/bang-api/app/services/task/common.BuildTasksCommonSystemFieldValues": ["task", ""],
+    "github.com/bangwork/bang-api/app/services/component/helper.DeleteUserViewByFilter": ["component", ""],
+    "github.com/bangwork/bang-api/app/services/component/helper.UpdateUserViewByFilter": ["component", ""],
+    "github.com/bangwork/bang-api/app/services/component/helper.AddUserViewByFilter": ["component", ""],
 }
 
+
+# 例如：app/services/project/field
+def get_module_submodule_from_function_call(function_call):
+    # 倒序遍历
+    sorted_pattern = sorted(FUNCTION_CALL_MODULE_SUBMODULE_PATTERN_MAP.items(), key=lambda x: x[0], reverse=True)
+    for pattern in sorted_pattern:
+        if fnmatch.fnmatch(function_call, pattern[0]):
+            return pattern[1][0], pattern[1][1]
+    return None, None
+
+
+# 要求把最具体的放在后面，然后程序里倒序遍历
+DIRECTORY_PATH_MODULE_SUBMODULE_PATTERN_MAP = {
+    "app/services/project/field*": ["project", "project_field"],
+    "app/services/project*": ["project", ""],
+    "app/services/filter*": ["project", "filter"],
+    "app/services/role*": ["project", "role"],
+    "app/services/sprint*": ["project", "sprint"],
+    "app/services/component*": ["project", "component"],
+    "app/services/dashboard*": ["project", "dashboard"],
+    "app/services/report*": ["project", "report"],
+    "app/services/rank*": ["project", "sprint"],
+    "app/services/container*": ["project", "container"],
+    "app/services/common/sprint*": ["project", "sprint"],
+    "app/services/common/component*": ["project", "component"],
+    "app/services/common/container*": ["project", "container"],
+    "app/services/common/filter*": ["project", "filter"],
+}
+
+
+def get_module_submodule_from_directory_path(directory_path):
+    directory_path = parse_directory_path(directory_path)
+    # 先对 DIRECTORY_PATH_MODULE_SUBMODULE_PATTERN_MAP 按照 key 倒序排序，存到数组里
+    sorted_pattern = sorted(DIRECTORY_PATH_MODULE_SUBMODULE_PATTERN_MAP.items(), key=lambda x: x[0], reverse=True)
+    for pattern in sorted_pattern:
+        if fnmatch.fnmatch(directory_path, pattern[0]):
+            return pattern[1][0], pattern[1][1]
+    return None, None
+
+
 # module 名字 map
+# 要再加一层子模块的名字映射
 MODULE_NAME_MAP = {
     "carddelegates": "卡片",
     "card": "卡片",
@@ -187,12 +368,10 @@ MODULE_NAME_MAP = {
     "lua": "Lua脚本",
     "manhour": "工时",
     "message": "message消息",
-    "noticeconfig": "通知",
-    "noticerules": "通知",
+    "notice": "通知",
     "objectlink": "关联工作项",
     "objectlinktype": "关联工作项",
     "permission": "权限",
-    "permissionrule": "权限",
     "plugin": "插件",
     "program": "项目集",
     "project": "项目",
@@ -212,22 +391,17 @@ MODULE_NAME_MAP = {
     "user": "用户",
     "userdomain": "用户域",
     "userguide": "用户指南",
-    "wikiutils": "Wiki",
     "wiki": "Wiki",
     "workflow": "工作项工作流",
     "ganttchart": "甘特图",
-    "activity": "项目计划",
+    "ppmtask": "项目计划",
     "i18n": "多语言",
-    "item_handler": "插件",
     "role": "角色",
     "deliverable": "交付物",
     "issue_type_scope_field_constraint": "工作项类型",
     "milestone": "里程碑",
-    "ppmtask": "项目计划",
     "product": "产品管理",
     "report": "报表",
-    "project_custom_component": "插件",
-    "custom_language": "多语言",
     "trigger": "工作项类型",
     "webhook": "Webhook",
     "webhook_filter": "Webhook",
@@ -236,6 +410,7 @@ MODULE_NAME_MAP = {
     "kanban": "看板",
     "eventbus": "事件总线",
     "component": "组件",
+    "project_field": "项目属性",
 }
 
 
@@ -312,6 +487,16 @@ def write_data_to_excel(data, column_widths, excel_filename):
     wb.save(excel_filename)
 
 
+def parse_directory_path(path):
+    # /Users/xhs/go/src/github.com/bangwork/bang-api-gomod/app/services/filter
+    # app/services/filter
+    # 按 / 分割，倒着找到第一个包含 app 的，然后取后面的
+    parts = path.split("/")
+    for i in range(len(parts) - 1, -1, -1):
+        if "app" in parts[i]:
+            return "/".join(parts[i:])
+
+
 def process_directory(directory_path, exclude_patterns):
     data = []
     for root, dirs, files in os.walk(directory_path):
@@ -330,18 +515,20 @@ def process_directory(directory_path, exclude_patterns):
                         prefix = package_info['package']
                         for j, function_call in enumerate(package_info["function_calls"]):
                             # 第一行才需要 Directory 和 File
-                            if FUNCTION_CALL_MODULE_MAP.get(function_call):
-                                module = FUNCTION_CALL_MODULE_MAP.get(function_call)
-                            else:
-                                module = function_call.split(".")[1].split("/")[-1]
+                            module, submodule = get_module_submodule_from_function_call(function_call)
+                            this_module, this_submodule = get_module_submodule_from_directory_path(root)
+                            # if FUNCTION_CALL_MODULE_MAP.get(function_call):
+                            #     module = FUNCTION_CALL_MODULE_MAP.get(function_call)
+                            # else:
+                            #     module = function_call.split(".")[1].split("/")[-1]
+                            # this_module = MODULE_NAME_MAP.get(root.split("/")[-1], root.split("/")[-1])
                             module = MODULE_NAME_MAP.get(module, module)
-                            if i == 0 and j == 0:
-                                data.append([root, file_path, function_call, module])
-                            elif j == 0:
-                                data.append(["", "", function_call, module])
-                            else:
-                                data.append(["", "", function_call, module])
-                            print(f"{prefix}.{function_call}")
+                            submodule = MODULE_NAME_MAP.get(submodule, submodule)
+                            this_module = MODULE_NAME_MAP.get(this_module, this_module)
+                            this_submodule = MODULE_NAME_MAP.get(this_submodule, this_submodule)
+                            data.append(
+                                [root, file_path, function_call, this_module, this_submodule, module, submodule])
+                            # print(f"{prefix}.{function_call}")
                 print("\n")
 
     return data
@@ -351,7 +538,7 @@ def process_directory(directory_path, exclude_patterns):
 # python extract_go_info.py /Users/xhs/go/src/github.com/bangwork/bang-api-gomod/app/services/project,/Users/xhs/go/src/github.com/bangwork/bang-api-gomod/app/services/filter
 if __name__ == "__main__":
     all_data = []
-    all_data.append(["Directory", "File", "Reference", "Module"])
+    all_data.append(["Directory", "File", "Reference", "ThisModule", "ThisSubmodule", "Module", "Submodule"])
     if len(sys.argv) != 2:
         print("Usage: python extract_go_info.py <directory_path>")
         sys.exit(1)
@@ -367,6 +554,7 @@ if __name__ == "__main__":
         all_data.extend(data)
 
     # 目录路径后面两级作为文件名
-    column_widths = [20, 20, 80, 10]
+    column_widths = [20, 20, 80, 15, 15, 15, 15]
     directory_name = "dependency"
+    # all_data 是二维数组，按
     write_data_to_excel(all_data, column_widths, f"{directory_name}.xlsx")
