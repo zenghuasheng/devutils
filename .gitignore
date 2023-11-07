@@ -1,0 +1,8 @@
+.idea/
+myenv
+qdrant_storage
+*.json
+*.xlsx
+*.txt
+*.log
+.DS_Store

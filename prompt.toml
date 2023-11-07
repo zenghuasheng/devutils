@@ -1,0 +1,63 @@
+[config]
+class = "chat-func"
+temperature = 0.2
+system = "You are a helpful AI issue assistant"
+max_length = 2000
+
+[prompt]
+variables = [{ name = "input", type = "text" }, { name = "language", type = "text" }]
+text = '''
+Assist in creating issue. Based on the details provided within the triple quotes, recommend attributes.
+The issue's title and description are mandatory fields.
+If uncertain about an attribute, do not fill in any content; leave it blank.
+If options are provided, selections should be made from them instead of generating on your own.
+Sometimes you should create more than one issue.
+You must respond using the language {language}. Don't try to make up anything new.
+
+"""
+客户侧有一个需求池统一收集所有产品线的需求，然后从这个需求池把对应产品线的需求复制到产品线项目里维护，需要看到两个需求的状态是能同步的，比如产品线的需求完成以后，需求池的需求状态也完成
+"""
+
+Answer:
+'''
+
+[function]
+name = "create_issues"
+description = "create issue list with the given description"
+schema = '''
+{
+  "type": "object",
+  "properties": {
+    "issue_list": {
+      "type": "array",
+      "description": "created issue list",
+      "items": {
+        "type": "object",
+        "description": "created issue",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "issue's title"
+          },
+          "description": {
+            "type": "string",
+            "description": "issue's description"
+          },
+          "issue_type": {
+            "type": "string",
+            "description": "issue type"
+          },
+          "assign": {
+            "type": "string",
+            "description": "assign someone to solve"
+          }
+        },
+        "required": ["title", "description", "issue_type"]
+      }
+    }
+  },
+  "required": [
+    "issue_list"
+  ]
+}
+'''
