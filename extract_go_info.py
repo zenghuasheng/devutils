@@ -98,6 +98,31 @@ EXCLUDE_PATTERNS = [
     "github.com/bangwork/bang-api/app/utils/json.*",
     "github.com/bangwork/bang-api/app/models/utils.*",
     "github.com/bangwork/bang-api/app/utils.GenerateNewDescRich",
+
+    # 多语言，权限的也过滤掉
+    "github.com/bangwork/bang-api/app/models/custom_language.*",
+    "github.com/bangwork/bang-api/app/utils/i18n/render.*",
+    "github.com/bangwork/bang-api/app/services/permission.*",
+    "github.com/bangwork/bang-api/app/utils/constraint.*",
+    "github.com/bangwork/bang-api/app/services/custom_language.*",
+    "github.com/bangwork/bang-api/app/utils/i18n.*",
+    "github.com/bangwork/bang-api/app/services/permissionrule.*",
+
+    "github.com/bangwork/bang-api/app/services/common.MustGetProject",
+    "github.com/bangwork/bang-api/app/services/common.MustGetProjectIssueType",
+    "github.com/bangwork/bang-api/app/services/common.MustGetProjectIssueTypeScope",
+    "github.com/bangwork/bang-api/app/services/common.MustGetProjectIssueTypeScope",
+    "github.com/bangwork/bang-api/app/services/common.MustGetSprint",
+    "github.com/bangwork/bang-api/app/services/common.MustGetSprint",
+    "github.com/bangwork/bang-api/app/services/common.MustGetSprint",
+    "github.com/bangwork/bang-api/app/services/common.MustManageIssueTypeScope",
+    "github.com/bangwork/bang-api/app/services/common/utils.BuildComponentCustomLanguage",
+    "github.com/bangwork/bang-api/app/services/common/utils.ConstructComponentCustomLanguangeKey",
+    "github.com/bangwork/bang-api/app/services/common/utils.ConstructComponentCustomLanguangeKey",
+    "github.com/bangwork/bang-api/app/services/common/utils.ConstructComponentCustomLanguangeKey",
+
+    # 获取数据库或 redis 连接的也去掉
+    "github.com/bangwork/bang-api/app/models/setting.NewDBStore",
 ]
 
 PROJECT_COMMON_EXCLUDE_PATTERNS = [
@@ -170,7 +195,6 @@ MODULE_EXTRA_EXCLUDE_MAP = {
     ]
 }
 
-# 要把最具体的放在后面，然后程序里倒序遍历
 # 值数组的第一个元素是模块，第二个元素是子模块
 FUNCTION_CALL_MODULE_SUBMODULE_PATTERN_MAP = {
     "github.com/bangwork/bang-api/app/utils/i18n.*": ["i18n", ""],
@@ -314,7 +338,6 @@ def get_module_submodule_from_function_call(function_call):
     return None, None
 
 
-# 要求把最具体的放在后面，然后程序里倒序遍历
 DIRECTORY_PATH_MODULE_SUBMODULE_PATTERN_MAP = {
     "app/services/project/field*": ["project", "project_field"],
     "app/services/project*": ["project", ""],
@@ -506,11 +529,7 @@ def process_directory(directory_path, exclude_patterns):
                 package_name, imported_packages = extract_go_info(file_path, exclude_patterns)
                 # 排除 imported_packages 里没有 function_calls 的元素
                 imported_packages = [x for x in imported_packages if x["function_calls"]]
-                print(f"Directory: {root}")
-                print(f"File: {file_path}")
-                print(f"Package Name: {package_name}")
                 if imported_packages:
-                    print("Imported Packages:")
                     for i, package_info in enumerate(imported_packages):
                         prefix = package_info['package']
                         for j, function_call in enumerate(package_info["function_calls"]):
