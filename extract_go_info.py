@@ -223,7 +223,6 @@ MODULE_EXTRA_EXCLUDE_MAP = {
     "app/services/report": PROJECT_COMMON_EXCLUDE_PATTERNS + [
         "github.com/bangwork/bang-api/app/models/report.*",
         "github.com/bangwork/bang-api/app/models/report/generators.*",
-        "github.com/bangwork/bang-api/app/services/manhour/report.*",
         "github.com/bangwork/bang-api/app/services/report.*",
     ],
     "app/services/project": PROJECT_COMMON_EXCLUDE_PATTERNS + [
@@ -384,7 +383,7 @@ FUNCTION_CALL_MODULE_SUBMODULE_PATTERN_MAP = {
     "github.com/bangwork/bang-api/app/utils/constraint.*": ["constraint", ""],
     "github.com/bangwork/bang-api/app/models/milestone.*": ["ppmtask", "milestone"],
     "github.com/bangwork/bang-api/app/services/permissionrule.*": ["permission", ""],
-    "github.com/bangwork/bang-api/app/services/manhour.*": ["manhour", ""],
+    "github.com/bangwork/bang-api/app/services/manhour*": ["manhour", ""],
     "github.com/bangwork/bang-api/app/models/issue_type_scope_field_constraint.*": ["task",
                                                                                     "issue_type_scope_field_constraint"],
     "github.com/bangwork/bang-api/app/services/common/filter.*": ["project", "filter"],
@@ -599,7 +598,7 @@ def get_module_submodule_from_function_call(function_call):
     for pattern in sorted_pattern:
         if fnmatch.fnmatch(function_call, pattern[0]):
             return pattern[1][0], pattern[1][1]
-    return None, None
+    return "", ""
 
 
 DIRECTORY_PATH_MODULE_SUBMODULE_PATTERN_MAP = {
@@ -674,7 +673,7 @@ def get_module_submodule_from_directory_path(directory_path):
     for pattern in sorted_pattern:
         if fnmatch.fnmatch(directory_path, pattern[0]):
             return pattern[1][0], pattern[1][1]
-    return None, None
+    return "", ""
 
 
 # module 名字 map
@@ -879,6 +878,7 @@ def process_directory(directory_path, exclude_patterns):
 if __name__ == "__main__":
     all_data = []
     all_data.append(["Directory", "File", "Reference", "ThisModule", "ThisSubmodule", "Module", "Submodule"])
+    dependency_data = []
     if len(sys.argv) != 2:
         print("Usage: python extract_go_info.py <directory_path>")
         sys.exit(1)
@@ -891,10 +891,15 @@ if __name__ == "__main__":
                 exclude_patterns = EXCLUDE_PATTERNS + MODULE_EXTRA_EXCLUDE_MAP[name]
                 break
         data = process_directory(directory_path, exclude_patterns)
-        all_data.extend(data)
+        dependency_data.extend(data)
 
     # 目录路径后面两级作为文件名
-    column_widths = [20, 20, 80, 15, 15, 15, 15]
-    directory_name = "dependency"
-    # all_data 是二维数组，按
-    write_data_to_excel(all_data, column_widths, f"{directory_name}.xlsx")
+    column_widths = [25, 40, 80, 15, 15, 15, 15]
+    output_name = "dependency"
+    if len(directory_paths) == 1:
+        # 取最后两级作为文件名
+        output_name = directory_paths[0].split("/")[-2] + "_" + directory_paths[0].split("/")[-1]
+    # 按 Module 列排序，倒序
+    dependency_data = sorted(dependency_data, key=lambda x: x[5], reverse=True)
+    all_data.extend(dependency_data)
+    write_data_to_excel(all_data, column_widths, f"{output_name}.xlsx")
