@@ -202,8 +202,8 @@ MODULE_EXTRA_EXCLUDE_MAP = {
     "app/services/filter": PROJECT_COMMON_EXCLUDE_PATTERNS + ["github.com/bangwork/bang-api/app/models/filter.*"],
     "app/services/sprint": PROJECT_COMMON_EXCLUDE_PATTERNS + [
         "github.com/bangwork/bang-api/app/models/sprint.*",
-        "github.com/bangwork/bang-api/app/models/pipeline.*",
-        "github.com/bangwork/bang-api/app/services/pipeline.*",
+        # "github.com/bangwork/bang-api/app/models/pipeline.*",
+        # "github.com/bangwork/bang-api/app/services/pipeline.*",
         "github.com/bangwork/bang-api/app/services/common/sprint.*",
         "github.com/bangwork/bang-api/app/models/version.*",
     ],
@@ -812,10 +812,56 @@ def extract_go_info(file_path, exclude_patterns):
         package_path = package_info["package"]
         package_info["function_calls"] = filter_references(
             (to_qualified_name(package_path, search_name, v) for v in function_calls), exclude_patterns)
+        # 取出函数的原型
+        function_declaration = []
+        for i, function_call in enumerate(package_info["function_calls"]):
+            function_declaration.append(get_function_declaration(function_call))
+        package_info["function_declaration"] = function_declaration
+
         package_info["constant_references"] = filter_references(
             (to_qualified_name(package_path, search_name, v) for v in
              constant_references), exclude_patterns)
     return package_name, imported_packages
+
+
+
+
+def get_function_declaration(function_call):
+    # github.com/bangwork/bang-api/app/models/manhour.ListManhoursByTaskUUIDs
+    # 把 app/models/manhour 路径提取出来
+    # 把 ListManhoursByTaskUUIDs 提取出来
+    function_call_parts = function_call.split("bang-api")
+    path_name = function_call_parts[-1]
+    path_name_parts = path_name.split(".")
+    bang_api_root = "/Users/xhs/go/src/github.com/bangwork/bang-api-gomod"
+    package_path = bang_api_root + path_name_parts[0]
+    function_name = path_name_parts[1]
+    # 遍历，从文件里找到 ListManhoursByTaskUUIDs 的声明
+    for root, dirs, files in os.walk(package_path):
+        for file in files:
+            if file.endswith(".go"):
+                file_path = os.path.join(root, file)
+                with open(file_path, 'r') as file:
+                    go_code = file.read()
+                    function_prototype = extract_function_prototype(go_code, function_name)
+                    if function_prototype:
+                        return function_prototype
+    return ""
+
+
+def extract_function_prototype(source_code, function_name):
+    # 构建匹配函数原型的正则表达式
+    pattern = re.compile(fr'\bfunc\b\s+{function_name}\s*\(.*?\)*{{', re.DOTALL)
+
+    # 使用正则表达式匹配函数原型
+    match = pattern.search(source_code)
+
+    if match:
+        # 返回匹配到的函数原型
+        # print(match.group(0))
+        return match.group(0)
+    else:
+        return ""
 
 
 def write_data_to_excel(data, column_widths, excel_filename):
@@ -867,8 +913,10 @@ def process_directory(directory_path, exclude_patterns):
                             submodule = MODULE_NAME_MAP.get(submodule, submodule)
                             this_module = MODULE_NAME_MAP.get(this_module, this_module)
                             this_submodule = MODULE_NAME_MAP.get(this_submodule, this_submodule)
+                            function_declaration = package_info["function_declaration"][j]
                             data.append(
-                                [root, file_path, function_call, this_module, this_submodule, module, submodule])
+                                [root, file_path, function_call, this_module, this_submodule, module, submodule,
+                                 function_declaration])
 
     return data
 
@@ -877,7 +925,7 @@ def process_directory(directory_path, exclude_patterns):
 # python extract_go_info.py /Users/xhs/go/src/github.com/bangwork/bang-api-gomod/app/services/project,/Users/xhs/go/src/github.com/bangwork/bang-api-gomod/app/services/filter
 if __name__ == "__main__":
     all_data = []
-    all_data.append(["Directory", "File", "Reference", "ThisModule", "ThisSubmodule", "Module", "Submodule"])
+    all_data.append(["Directory", "File", "Reference", "ThisModule", "ThisSubmodule", "Module", "Submodule", "FunctionDeclaration"])
     dependency_data = []
     if len(sys.argv) != 2:
         print("Usage: python extract_go_info.py <directory_path>")
@@ -894,12 +942,16 @@ if __name__ == "__main__":
         dependency_data.extend(data)
 
     # 目录路径后面两级作为文件名
-    column_widths = [25, 40, 80, 15, 15, 15, 15]
+    column_widths = [25, 40, 80, 15, 15, 15, 15, 80]
     output_name = "dependency"
     if len(directory_paths) == 1:
         # 取最后两级作为文件名
         output_name = directory_paths[0].split("/")[-2] + "_" + directory_paths[0].split("/")[-1]
     # 按 Module 列排序，倒序
-    dependency_data = sorted(dependency_data, key=lambda x: x[5], reverse=True)
+    # dependency_data = sorted(dependency_data, key=lambda x: x[5], reverse=True)
+    # 按 FunctionDeclaration 列排序
+    # dependency_data = sorted(dependency_data, key=lambda x: x[7])
+    # 按 Reference 列排序
+    dependency_data = sorted(dependency_data, key=lambda x: x[2])
     all_data.extend(dependency_data)
     write_data_to_excel(all_data, column_widths, f"{output_name}.xlsx")
