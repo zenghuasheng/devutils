@@ -3,6 +3,7 @@ import os
 import subprocess
 import sys
 
+env_info_path = os.path.join(os.path.expanduser("~"), "env_infos.json")
 
 def comment_code():
     # Run git status and capture the output
@@ -31,7 +32,7 @@ def comment_code():
 
 
 def update_ip_in_env_infos(env_name, new_ip):
-    if not os.path.exists("env_infos.json"):
+    if not os.path.exists(env_info_path):
         print("找不到 env_infos.json 文件，请确保文件存在并包含正确的环境信息")
         exit(1)
 
@@ -50,6 +51,17 @@ def update_ip_in_env_infos(env_name, new_ip):
     print(f"已更新环境 {env_name} 的 IP 为 {new_ip}")
 
 
+def get_ip(env_name):
+    if not os.path.exists(env_info_path):
+        print("找不到 env_infos.json 文件，请确保文件存在并包含正确的环境信息")
+        exit(1)
+    with open("env_infos.json", "r") as json_file:
+        env_infos = json.load(json_file)
+    if env_name not in env_infos or "public_ip" not in env_infos[env_name]:
+        print(f"找不到环境 {env_name} 的 IP，请手动输入")
+    return env_infos[env_name]['public_ip']
+
+
 if __name__ == '__main__':
     # 检查参数
     if len(sys.argv) < 2:
@@ -61,6 +73,8 @@ if __name__ == '__main__':
 
     # 如果未提供 IP，检查 env_infos.json 文件
     if ip is None:
+        ip = get_ip(env_name)
+    else:
         update_ip_in_env_infos(env_name, ip)
 
     # 执行 scp 和 ssh 命令
