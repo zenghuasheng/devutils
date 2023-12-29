@@ -1,12 +1,13 @@
 import os
 import subprocess
+from replace_code import replace_text_in_file, add_import
 
 
 def move_and_replace_imports(main_dir, module_map):
     os.chdir(main_dir)
 
     # mvc_dirs = ['app/models', 'app/services', 'app/controllers', 'app/services/common']
-    mvc_dirs = ['app/services/common']
+    mvc_dirs = ['app/controllers']
     for module_dir in mvc_dirs:
         # 去掉 app
         module = module_dir.replace('app/', '')
@@ -14,44 +15,62 @@ def move_and_replace_imports(main_dir, module_map):
 
         # 遍历子目录
         for dirpath, dirnames, filenames in os.walk(source_dir):
-            # for filename in filenames:
-            #     # 检查是否有映射关系
-            #     # 把 filename 拆分成文件名和后缀
-            #     name, file_extension = os.path.splitext(filename)
-            #     if name not in module_map:
-            #         # print(f"No mapping for {filename}, skipping...")
-            #         continue
-            #
-            #     target = module_map[filename]
-            #     target_file = os.path.join(main_dir, f'project-lib/{target}/{module}/{filename}')
-            #
-            #     # 创建父级目录
-            #     os.makedirs(os.path.dirname(target_file), exist_ok=True)
-            #
-            #     # 移动文件
-            #     subprocess.run(['mv', os.path.join(dirpath, filename), target_file])
-            #
-            #     # 替换 import
-            #     # find /Users/xhs/go/src/github.com/bangwork/bang-api-gomod -type f -name '*.go' -exec sed -i '' 's|github\.com/bangwork/bang-api/app/models/commoncomment|github\.com/bangwork/bang-api/project-lib/task/models/commoncomment|g' {} +
-            #     replace_command = f"find {main_dir} -type f -name '*.go' -exec sed -i '' 's|github\.com/bangwork/bang-api/app/{module}/{filename}|github\.com/bangwork/bang-api/project-lib/{target}/{module}/{filename}|g' {{}} +"
-            #     subprocess.run(replace_command, shell=True)
-            #
-            #     # 执行构建命令
-            #     build_command = '/Users/xhs/go1.17/go1.20.1/bin/go build  -o /tmp/'
-            #     build_result = subprocess.run(build_command, shell=True, check=False)
-            #
-            #     # 检查构建结果
-            #     if build_result.returncode == 0:
-            #         # 构建成功，自动提交修改
-            #         git_commit_command = f'git add . && git commit -m "{target_file}"'
-            #         commit_result = subprocess.run(git_commit_command, shell=True, stdout=subprocess.PIPE,
-            #                                        stderr=subprocess.PIPE)
-            #         if commit_result.returncode != 0 and "nothing to commit, working tree clean" not in commit_result.stdout.decode(
-            #                 "utf-8"):
-            #             print(f'Commit failed, Please check the modifications.')
-            #             exit(1)
-            #     else:
-            #         print(f'Build failed, Please check the modifications.')
+            for filename in filenames:
+                # 检查是否有映射关系
+                # 把 filename 拆分成文件名和后缀
+                name, file_extension = os.path.splitext(filename)
+                if name not in module_map:
+                    # print(f"No mapping for {filename}, skipping...")
+                    continue
+
+                repo, target = module_map[name]
+                if repo == "" or target == "":
+                    print(f"No mapping for {filename}, skipping...")
+                    continue
+                if repo == "biz-common":
+                    continue
+                target_module = f'{repo}/{target}/{module}/{filename}'
+                print(f'Moving {filename} to {target_module}')
+                target_file = os.path.join(main_dir, target_module)
+
+                # 这是绝对路径了
+                package_name = os.path.dirname(target_file)
+                # 创建父级目录
+                os.makedirs(package_name, exist_ok=True)
+
+                # 移动文件
+                subprocess.run(['mv', os.path.join(dirpath, filename), target_file])
+
+                # controllers 文件内容替换
+                replace_text_in_file(target_file)
+
+                # 添加 import
+                add_import(target_file, "github.com/bangwork/bang-api/app/utils/httpsvc")
+
+                # 看这个文件暴露了哪些函数，找到引用的地方，替换成新的引用
+
+                # 替换 import
+                # find /Users/xhs/go/src/github.com/bangwork/bang-api-gomod -type f -name '*.go' -exec sed -i '' 's|github\.com/bangwork/bang-api/app/models/commoncomment|github\.com/bangwork/bang-api/project-lib/task/models/commoncomment|g' {} +
+                # replace_command = f"find {main_dir} -type f -name '*.go' -exec sed -i '' 's|github\.com/bangwork/bang-api/app/{module}/{filename}|github\.com/bangwork/bang-api/project-lib/{target}/{module}/{filename}|g' {{}} +"
+                # subprocess.run(replace_command, shell=True)
+
+                # 执行构建命令
+                build_command = '/Users/xhs/go1.17/go1.20.1/bin/go build  -o /tmp/'
+                build_result = subprocess.run(build_command, shell=True, check=False)
+
+                # 检查构建结果
+                if build_result.returncode == 0:
+                    # 构建成功，自动提交修改
+                    git_commit_command = f'git add . && git commit -m "{target_file}"'
+                    commit_result = subprocess.run(git_commit_command, shell=True, stdout=subprocess.PIPE,
+                                                   stderr=subprocess.PIPE)
+                    if commit_result.returncode != 0 and "nothing to commit, working tree clean" not in commit_result.stdout.decode(
+                            "utf-8"):
+                        print(f'Commit failed, Please check the modifications.')
+                        exit(1)
+                else:
+                    print(f'Build failed, Please check the modifications.')
+                    exit(1)
             for dirname in dirnames:
                 # 检查是否有映射关系
                 if dirname not in module_map:
@@ -61,6 +80,9 @@ def move_and_replace_imports(main_dir, module_map):
                 repo, target = module_map[dirname]
                 if repo == "" or target == "":
                     print(f"No mapping for {dirname}, skipping...")
+                    continue
+
+                if module == "controllers":
                     continue
                 target_module = f'{repo}/{target}/{module}/{dirname}'
                 print(f'Moving {dirname} to {target_module}')
@@ -114,7 +136,7 @@ if __name__ == '__main__':
         # services
         # "account": ("", ""),
         # "accountnotice": ("", ""),
-        "activity": ("project-lib", "ppm"),
+        "activity": ("project-api", "ppm"),
         # "agent": ("", ""),
         # "amqp": ("", ""),
         # "app": ("", ""),
@@ -134,28 +156,28 @@ if __name__ == '__main__':
         "commoncomment": ("biz-common", "comment"),
         "commonmessage": ("biz-common", "message"),
         # "config": ("", ""),
-        "container": ("project-lib", "container"),
+        "container": ("project-api", "container"),
         "context": ("biz-common", "context"),
         # "copilot": ("", ""),
         # "cron": ("", ""),
         # "custom_language": ("", ""),
         # "demo": ("", ""),
-        "desk": ("project-lib", "desk"),
+        "desk": ("project-api", "desk"),
         # "devops": ("", ""),
         # "encryption": ("", ""),
         "environment": ("biz-common", "environment"),
         # "event": ("", ""),
         # "eventbus": ("", ""),
-        "field": ("project-lib", "task"),
-        "fieldcal": ("project-lib", "task"),
-        "filter": ("project-lib", "project"),
-        "ganttchart": ("project-lib", "ppm"),
+        "field": ("project-api", "task"),
+        "fieldcal": ("project-api", "task"),
+        "filter": ("project-api", "project"),
+        "ganttchart": ("project-api", "ppm"),
         # "import_rule": ("", ""),
         # "importer": ("", ""),
         # "init.go": ("", ""),
-        "item": ("project-lib", "item"),
-        "kanban": ("project-lib", "project"),
-        "layout": ("project-lib", "task"),
+        "item": ("project-api", "item"),
+        "kanban": ("project-api", "project"),
+        "layout": ("project-api", "task"),
         # "license": ("", ""),
         # "login_notice": ("", ""),
         "lua": ("biz-common", "lua"),
@@ -172,8 +194,8 @@ if __name__ == '__main__':
         # "notify": ("", ""),
         # "oauth": ("", ""),
         # "object": ("", ""),
-        "objectlink": ("project-lib", "task"),
-        "objectlinktype": ("project-lib", "task"),
+        "objectlink": ("project-api", "task"),
+        "objectlinktype": ("project-api", "task"),
         # "ones_task": ("", ""),
         # "open-platform-services": ("", ""),
         # "operations": ("", ""),
@@ -186,21 +208,21 @@ if __name__ == '__main__':
         # "plugin": ("", ""),
         # "plugin-platform": ("", ""),
         # "privacy_policy": ("", ""),
-        "product": ("project-lib", "project"),
+        "product": ("project-api", "project"),
         # "program": ("", ""),
-        "publishVersion": ("project-lib", "task"),
+        "publishVersion": ("project-api", "task"),
         # "push": ("", ""),
         # "queue": ("", ""),
-        "rank": ("project-lib", "project"),
+        "rank": ("project-api", "project"),
         # "region": ("", ""),
         "related": ("biz-common", "related"),
-        "report": ("project-lib", "project"),
+        "report": ("project-api", "project"),
         "resource": ("biz-common", "resource"),
         "resource_management": ("biz-common", "resource"),
         # "risk_detection": ("", ""),
         # "scm": ("", ""),
-        "scope_field": ("project-lib", "task"),
-        "scope_field_config": ("project-lib", "task"),
+        "scope_field": ("project-api", "task"),
+        "scope_field_config": ("project-api", "task"),
         # "script_field": ("", ""),
         "search": ("biz-common", "search"),
         # "service": ("", ""),
@@ -210,7 +232,7 @@ if __name__ == '__main__':
         # "sso": ("", ""),
         # "sso.v2": ("", ""),
         "stamp": ("biz-common", "stamp"),
-        "status": ("project-lib", "task"),
+        "status": ("project-api", "task"),
         # "stripe": ("", ""),
         # "style.v2": ("", ""),
         # "tabconfig": ("", ""),
@@ -226,10 +248,10 @@ if __name__ == '__main__':
         "userdomain": ("biz-common", "userdomain"),
         "usergroup": ("biz-common", "user"),
         # "userguide": ("", ""),
-        "version": ("project-lib", "task"),
+        "version": ("project-api", "task"),
         # "webhook": ("", ""),
-        "workflow": ("project-lib", "task"),
-        "workorder": ("project-lib", "task"),
+        "workflow": ("project-api", "task"),
+        "workorder": ("project-api", "task"),
         # models
         # "accountnotice": ("", ""),
         # "action": ("", ""),
@@ -245,26 +267,26 @@ if __name__ == '__main__':
         # "channel": ("", ""),
         # "common": ("", ""),
         "condition": ("biz-common", "condition"),
-        "dashboard": ("project-lib", "project"),
+        "dashboard": ("project-api", "project"),
         # "db": ("", ""),
         # "department": ("", ""),
         # "es": ("", ""),
-        "field_cal": ("project-lib", "task"),
+        "field_cal": ("project-api", "task"),
         # "geolocation": ("", ""),
         # "i18n": ("", ""),
         # "imap.go": ("", ""),
         # "importerbase": ("", ""),
         # "ip_resolver": ("", ""),
         # "kilob": ("", ""),
-        "layout_field": ("project-lib", "task"),
+        "layout_field": ("project-api", "task"),
         # "mail.go": ("", ""),
         # "migrate_notice": ("", ""),
-        "milestone": ("project-lib", "ppm"),
+        "milestone": ("project-api", "ppm"),
         "notification": ("biz-common", "notice"),
         # "observer": ("", ""),
         # "onesapp": ("", ""),
         # "pages": ("", ""),
-        "ppmtask": ("project-lib", "ppm"),
+        "ppmtask": ("project-api", "ppm"),
         # "quickaction": ("", ""),
         # "request_code.go": ("", ""),
         # "reset_code.go": ("", ""),
@@ -274,7 +296,7 @@ if __name__ == '__main__':
         # "thirdparty": ("", ""),
         # "utils": ("", ""),
         # "whiteAppEmailRecord": ("", ""),
-        "workordernotice": ("project-lib", "task"),
+        "workordernotice": ("project-api", "task"),
         # "activity": "ppm",
         # "commoncomment": "task",
         # "container": "project",
@@ -312,12 +334,12 @@ if __name__ == '__main__':
         # "auth": ("", ""),
         # "automation": ("", ""),
         "batch": ("", ""),
-        "component": ("project-lib", "project"),
+        "component": ("project-api", "project"),
         # "email": ("", ""),
         "errors": ("biz-common", "errors"),
-        "gantt": ("project-lib", "ppm"),
+        "gantt": ("project-api", "ppm"),
         # "get.go": ("", ""),
-        "issuetype": ("project-lib", "task"),
+        "issuetype": ("project-api", "task"),
         "kmutex": ("biz-common", "mutex"),
         # "license_manager": ("", ""),
         # "liststore": ("", ""),
@@ -327,12 +349,12 @@ if __name__ == '__main__':
         "organization": ("biz-common", "user"),
         # "sample": ("", ""),
         # "sort.go": ("", ""),
-        "sprint": ("project-lib", "project"),
+        "sprint": ("project-api", "project"),
         # "statdog": ("", ""),
-        "task": ("project-lib", "task"),
+        "task": ("project-api", "task"),
         # "team.go": ("", ""),
-        "template": ("project-lib", "task"),
-        "template_defaultconfig": ("project-lib", "task"),
+        "template": ("project-api", "task"),
+        "template_defaultconfig": ("project-api", "task"),
         # "thirdparty": ("", ""),
         # "utils": ("", ""),
     }
