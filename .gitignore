@@ -6,3 +6,4 @@ qdrant_storage
 *.txt
 *.log
 .DS_Store
+*.png

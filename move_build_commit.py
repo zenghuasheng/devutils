@@ -7,7 +7,7 @@ def move_and_replace_imports(main_dir, module_map):
     os.chdir(main_dir)
 
     # mvc_dirs = ['app/models', 'app/services', 'app/controllers', 'app/services/common']
-    mvc_dirs = ['app/controllers']
+    mvc_dirs = ['app/models']
     for module_dir in mvc_dirs:
         # 去掉 app
         module = module_dir.replace('app/', '')
@@ -175,7 +175,7 @@ if __name__ == '__main__':
         # "import_rule": ("", ""),
         # "importer": ("", ""),
         # "init.go": ("", ""),
-        "item": ("project-api", "item"),
+        # "item": ("project-api", "item"),
         "kanban": ("project-api", "project"),
         "layout": ("project-api", "task"),
         # "license": ("", ""),
@@ -235,7 +235,7 @@ if __name__ == '__main__':
         "status": ("project-api", "task"),
         # "stripe": ("", ""),
         # "style.v2": ("", ""),
-        # "tabconfig": ("", ""),
+        "tabconfig": ("project-api", "task"),
         # "team": ("", ""),
         # "teamscm": ("", ""),
         # "template": ("", ""),
