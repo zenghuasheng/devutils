@@ -85,6 +85,7 @@ def parse_command_line_args():
     parser.add_argument("--ip", help="remote server ip", required=False)
     parser.add_argument("--port", help="ssh port, default is 8122", required=False, default="8122")
     parser.add_argument("--only-restart", action="store_true", help="Only restart the service")
+    parser.add_argument("--ssh", action="store_true", help="Show ssh connection info")
 
     args = parser.parse_args()
 
@@ -106,6 +107,10 @@ if __name__ == '__main__':
         else:
             # TODO 先测试 IP 是否可用
             update_ip_in_env_infos(env_name, ip)
+
+        if args.ssh:
+            print(f"ssh -p {port} root@{ip}")
+            sys.exit(0)
 
         if not args.only_restart:
             # 执行 scp 和 ssh 命令
