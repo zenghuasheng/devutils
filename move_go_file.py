@@ -416,6 +416,10 @@ if __name__ == '__main__':
     try:
         # 先判断 source, target 是否是 .go 文件
         if is_go_file(args.source) and is_go_file(args.target):
+            # 如果 target 已经存在，报错
+            if os.path.exists(os.path.join(args.main_dir, args.target)):
+                print(f'target "{args.target}" already exists')
+                sys.exit(1)
             if not os.path.exists(args.symbol_bin_path):
                 print(f'symbol_bin_path "{args.symbol_bin_path}" not exists')
                 sys.exit(1)
