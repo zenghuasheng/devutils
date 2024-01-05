@@ -63,7 +63,7 @@ def parse_command_line_args():
     # 添加位置参数
     parser.add_argument("source", help="relative path of source package, like app/services/common/organization")
     parser.add_argument("target", help="relative path of target package, like biz-common/organization")
-    parser.add_argument("--main_dir", help="directory path of bang-api", required=False,
+    parser.add_argument("--main-dir", help="directory path of bang-api", required=False,
                         default='/Users/xhs/go/src/github.com/bangwork/bang-api-gomod')
     # go path
     parser.add_argument("--go_path", help="go path", required=False, default='/Users/xhs/go1.17/go1.20.1/bin/go')

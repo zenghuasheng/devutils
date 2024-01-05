@@ -22,7 +22,7 @@ def comment_code():
     status_output = subprocess.getoutput('git status')
 
     # Check if "working tree clean" is in the output
-    if "working tree clean" in status_output:
+    if "working tree clean" in status_output or "app/init.go" not in status_output:
         # If "working tree clean" is found, comment out the specified line with "github.com/bangwork/ones-anti-piracy/pkg/apis/runtime"
         with open('app/init.go', 'r') as file:
             lines = file.readlines()
@@ -86,6 +86,7 @@ def parse_command_line_args():
     parser.add_argument("--port", help="ssh port, default is 8122", required=False, default="8122")
     parser.add_argument("--only-restart", action="store_true", help="Only restart the service")
     parser.add_argument("--ssh", action="store_true", help="Show ssh connection info")
+    parser.add_argument("--only-log", action="store_true", help="Only show log")
 
     args = parser.parse_args()
 
@@ -110,6 +111,11 @@ if __name__ == '__main__':
 
         if args.ssh:
             print(f"ssh -p {port} root@{ip}")
+            sys.exit(0)
+
+        if args.only_log:
+            subprocess.run(["ssh", "-p", port, f"root@{ip}",
+                            "docker exec -i $(docker ps -q --filter 'publish=80') /bin/bash -c 'tail -f /usr/local/ones-ai-project-api/nohup.out'"])
             sys.exit(0)
 
         if not args.only_restart:
