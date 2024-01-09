@@ -3,6 +3,7 @@ import os
 import re
 import subprocess
 import sys
+import json
 
 
 def parse_command_line_args():
@@ -196,6 +197,26 @@ def is_go_file(file_name):
     return file_name.endswith('.go')
 
 
+def include_symbol(symbol_name, go_code):
+    # 查找是否含有某个 symbol
+    pattern = re.compile(r'\b' + re.escape(symbol_name) + r'\b')
+    match_lines = []
+    for i, line in enumerate(go_code.split('\n'), start=1):
+        if re.search(pattern, line):
+            match_lines.append(line)
+    if len(match_lines) == 0:
+        return False
+    # 看是否是别的包的同名 symbol，使用 .symbol_name 来搜索
+    this_package_lines = []
+    for line in match_lines:
+        if re.search(r'\.' + re.escape(symbol_name) + r'\b', line):
+            continue
+        this_package_lines.append(line)
+    if len(this_package_lines) == 0:
+        return False
+    return True
+
+
 class MoveGo:
     source = None
     target = None
@@ -204,8 +225,10 @@ class MoveGo:
     symbol_bin_path = None
     source_package_path = None
     target_package_path = None
-    package_symbol_names = []
-    file_symbol_names = []
+    package_exported_symbol_names = []
+    package_unexported_symbol_names = []
+    file_exported_symbol_names = []
+    file_unexported_symbol_names = []
     imported_files = []
     debug = False
 
@@ -221,8 +244,9 @@ class MoveGo:
         self.source_package_path = os.path.dirname(self.source)
         print(f'package path: {self.source_package_path}')
         self.target_package_path = os.path.dirname(self.target)
-        self.package_symbol_names = self.extract_symbols(include_package=True)
-        self.file_symbol_names = self.extract_symbols()
+        self.package_exported_symbol_names, self.package_unexported_symbol_names = self.extract_symbols(
+            include_package=True)
+        self.file_exported_symbol_names, self.file_unexported_symbol_names = self.extract_symbols()
 
     def extract_symbols(self, include_package=False):
         # 提取所有暴露的 symbol
@@ -239,15 +263,13 @@ class MoveGo:
         if result.returncode != 0:
             raise Exception(f'extract symbol failed: {result.stderr.decode("utf-8")}')
         doc = result.stdout.decode('utf-8')
-        symbol_lines = doc.split('\n')
+        # {"exported":[{"name":"ConfigActionAdd","kind":"const"},{"name":"ConfigActionUpdate","kind":"const"},{"name":"ConfigActionDelete","kind":"const"},{"name":"App","kind":"type"},{"name":"AppstoreConfig","kind":"type"},{"name":"TeamPluginConfig","kind":"type"},{"name":"NewTeamPluginConfig","kind":"func"}],"unexported":[{"name":"newAppstoreConfig","kind":"func"},{"name":"changeAppStoreConfig","kind":"func"},{"name":"addConfig","kind":"func"},{"name":"updateConfig","kind":"func"},{"name":"deleteConfig","kind":"func"}]}
+        # 返回是 json
         symbols = []
-        for line in symbol_lines:
-            if not line:
-                continue
-            symbols.append(line.split(' ')[0])
-        if self.debug:
-            print(f'symbol names: {symbols}')
-        return symbols
+        if not doc:
+            return symbols
+        symbols = json.loads(doc)
+        return [s['name'] for s in symbols['exported']], [s['name'] for s in symbols['unexported']]
 
     def search_imported_files(self):
         # 搜索所有文件，找到所有 import 了 package 的文件，可能有别名，设为文件 A
@@ -263,10 +285,12 @@ class MoveGo:
         self.imported_files = list(filter(None, self.imported_files))
 
     def replace(self):
-        # 检查 source 是否引用本 package 的函数和常量，如果是，报错
-        self.check_source()
-        # source 所在目录的文件也可能有引用，需要加一个 import，并把原来的 symbol 换成 newpackage.symbol
-        self.change_source_dir()
+        # 此文件用了包的导出的、未导出的 symbols
+        self.source_use_package_symbols()
+        # 包的其他文件用了此文件的未导出的 symbols
+        self.source_package_use_file_unexported_symbol()
+        # 包的其他文件用了此文件的导出的 symbols
+        self.source_package_use_file_exported_symbol()
 
         # 读取文件 A 内容，列出所有 package 的函数，常量
         # self.imported_files = ['/Users/xhs/go/src/github.com/bangwork/bang-api-gomod/app/services/manhour/message.go']
@@ -288,7 +312,7 @@ class MoveGo:
                 if len(file_symbols) == 0:
                     raise Exception(f'package {self.source_package_path} not found in {f}')
                 # 取 package_symbol_names 和 file_symbols 的交集
-                file_symbols = list(set(file_symbols).intersection(set(self.package_symbol_names)))
+                file_symbols = list(set(file_symbols).intersection(set(self.package_exported_symbol_names)))
                 if self.debug:
                     print(f'file symbols: {file_symbols}')
                 # 判断要替换的函数和常量是否都包含于原始文件里，如果是，替换包名，如果不是，加一个别名，比如 xxx2，插入一行 import
@@ -297,14 +321,14 @@ class MoveGo:
                 # 将文件指针移动回文件开头
                 f.seek(0)
 
-                if set(file_symbols).issubset(set(self.file_symbol_names)):
+                if set(file_symbols).issubset(set(self.file_exported_symbol_names)):
                     # 替换 import 就行
                     go_code = go_code.replace(f'"github.com/bangwork/bang-api/{self.source_package_path}"',
                                               f'"github.com/bangwork/bang-api/{self.target_package_path}"')
                     f.write(go_code)
                 else:
                     have_symbol = False
-                    for s in self.file_symbol_names:
+                    for s in self.file_exported_symbol_names:
                         if re.search(r'\b' + re.escape(s) + r'\b', go_code):
                             have_symbol = True
                             break
@@ -313,7 +337,7 @@ class MoveGo:
                     # 加一个别名，比如 xxx2，插入一行 import
                     go_code = add_import(go_code, f'{name}2 "github.com/bangwork/bang-api/{self.target_package_path}"')
                     # 替换
-                    for s in self.file_symbol_names:
+                    for s in self.file_exported_symbol_names:
                         go_code = re.sub(r'\b' + re.escape(f'{name}.{s}') + r'\b', f'{name}2.{s}', go_code)
                     f.write(go_code)
                 # 截断文件，删除多余的内容（如果新内容比旧内容短）
@@ -353,7 +377,7 @@ class MoveGo:
         else:
             raise Exception(f'Build failed, Please check the modifications.')
 
-    def change_source_dir(self):
+    def source_package_use_file_exported_symbol(self):
         for root, dirs, files in os.walk(os.path.join(self.main_dir, self.source_package_path)):
             for file in files:
                 # 是否是 .go 文件
@@ -367,7 +391,7 @@ class MoveGo:
                     go_code = f.read()
                     # 查找是否含有某个 symbol
                     have_symbol = False
-                    for s in self.file_symbol_names:
+                    for s in self.file_exported_symbol_names:
                         if re.search(r'\b' + re.escape(s) + r'\b', go_code):
                             have_symbol = True
                             break
@@ -379,29 +403,62 @@ class MoveGo:
                     # 从 self.target_package_path 提取 package name
                     package_name = self.target_package_path.split('/')[-1]
                     # 替换
-                    for s in self.file_symbol_names:
+                    for s in self.file_exported_symbol_names:
                         go_code = re.sub(r'\b' + re.escape(s) + r'\b', f'{package_name}.{s}', go_code)
                     f.write(go_code)
                     # 截断文件，删除多余的内容（如果新内容比旧内容短）
                     f.truncate()
             break
 
-    def check_source(self):
+    def source_use_package_symbols(self):
         with open(os.path.join(self.main_dir, self.source), 'r') as f:
             go_code = f.read()
             # self.package_symbol_names - self.file_symbol_names
             # 求差集
-            diff = list(set(self.package_symbol_names).difference(set(self.file_symbol_names)))
+            exported_diff = list(
+                set(self.package_exported_symbol_names).difference(set(self.file_exported_symbol_names)))
+            unexported_diff = list(
+                set(self.package_unexported_symbol_names).difference(set(self.file_unexported_symbol_names)))
             # 查找是否含有某个 symbol
             used_symbols = []
-            for s in diff:
-                if re.search(r'\b' + re.escape(s) + r'\b', go_code):
+            for s in exported_diff + unexported_diff:
+                if include_symbol(s, go_code):
                     used_symbols.append(s)
             if len(used_symbols) > 0:
                 used_symbols_str = '\n'.join(used_symbols)
                 raise Exception(f'{self.source} use these symbols in package '
                                 f'{self.source_package_path}, you must move them to {self.source} first: \n'
                                 f'{used_symbols_str}')
+
+    def source_package_use_file_unexported_symbol(self):
+        for root, dirs, files in os.walk(os.path.join(self.main_dir, self.source_package_path)):
+            errors = []
+            for file in files:
+                # 是否是 .go 文件
+                if not is_go_file(file):
+                    continue
+                # 如果是 source，跳过
+                if file == os.path.basename(self.source):
+                    continue
+                file_path = os.path.join(root, file)
+                with open(file_path, 'r+') as f:
+                    go_code = f.read()
+                    # 查找是否含有某个 symbol
+                    symbols = []
+                    for s in self.file_unexported_symbol_names:
+                        if include_symbol(s, go_code):
+                            symbols.append(s)
+                    if len(symbols) == 0:
+                        continue
+                    symbol_str = '\n'.join(symbols)
+                    errors.append(f'{file} use these symbols in {self.source_package_path}, '
+                                  f'you must change it first: \n'
+                                  f'{symbol_str}')
+            if len(errors) > 0:
+                error_str = '\n'.join(errors)
+                raise Exception(error_str)
+            break
+        pass
 
 
 if __name__ == '__main__':
