@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -11,7 +12,24 @@ import (
 )
 
 func main() {
+	/**
+	新的情况，别的文件还可能引用这个包的没导出的常量
+	此文件：所有 symbol
+	包：
+	symbol: 导出的、未导出的
+	要检查 4 种情况：
+	1. 此文件用了包的导出的常量
+	2. 此文件用了包的未导出的常量
+	3. 包的其他文件用了此文件的导出的常量
+	4. 包的其他文件用了此文件的未导出的常量
+
+	*/
 	exportSymbol()
+}
+
+type Symbol struct {
+	Name string `json:"name"`
+	Kind string `json:"kind"`
 }
 
 func exportSymbol() {
@@ -43,6 +61,9 @@ func exportSymbol() {
 	}
 
 	// 遍历解析得到的包
+	symbols := make(map[string][]Symbol)
+	symbols["exported"] = make([]Symbol, 0)
+	symbols["unexported"] = make([]Symbol, 0)
 	for _, pkg := range pkgs {
 		// 遍历包内文件
 		for filePath, file := range pkg.Files {
@@ -61,10 +82,16 @@ func exportSymbol() {
 							case *ast.ValueSpec:
 								// 输出导出的变量和常量名
 								for _, name := range s.Names {
-									if !name.IsExported() {
+									if name.Name == "_" {
 										continue
 									}
-									fmt.Printf("%s %v\n", name.Name, name.Obj.Kind)
+									if name.IsExported() {
+										symbols["exported"] = append(symbols["exported"],
+											Symbol{Name: name.Name, Kind: d.Tok.String()})
+									} else {
+										symbols["unexported"] = append(symbols["unexported"],
+											Symbol{Name: name.Name, Kind: d.Tok.String()})
+									}
 								}
 							}
 						}
@@ -73,22 +100,38 @@ func exportSymbol() {
 						for _, spec := range d.Specs {
 							switch s := spec.(type) {
 							case *ast.TypeSpec:
-								if !s.Name.IsExported() {
-									continue
+								if s.Name.IsExported() {
+									symbols["exported"] = append(symbols["exported"],
+										Symbol{Name: s.Name.Name, Kind: d.Tok.String()})
+								} else {
+									symbols["unexported"] = append(symbols["unexported"],
+										Symbol{Name: s.Name.Name, Kind: d.Tok.String()})
 								}
-								fmt.Printf("%s struct\n", s.Name.Name)
 							}
 						}
 					}
 				case *ast.FuncDecl:
-					// 输出导出的函数名
-					if d.Name.IsExported() && !isMethod(d) {
-						fmt.Printf("%s function\n", d.Name.Name)
+					if isMethod(d) {
+						// 如果是方法，跳过
+						continue
+					}
+					if d.Name.IsExported() {
+						symbols["exported"] = append(symbols["exported"],
+							Symbol{Name: d.Name.Name, Kind: "func"})
+					} else {
+						symbols["unexported"] = append(symbols["unexported"],
+							Symbol{Name: d.Name.Name, Kind: "func"})
 					}
 				}
 			}
 		}
 	}
+	// 转为 json 输出
+	bytes, err := json.Marshal(symbols)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(string(bytes))
 }
 
 func isMethod(decl *ast.FuncDecl) bool {
