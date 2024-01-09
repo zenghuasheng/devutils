@@ -73,17 +73,24 @@ func exportSymbol() {
 						for _, spec := range d.Specs {
 							switch s := spec.(type) {
 							case *ast.TypeSpec:
+								if !s.Name.IsExported() {
+									continue
+								}
 								fmt.Printf("%s struct\n", s.Name.Name)
 							}
 						}
 					}
 				case *ast.FuncDecl:
 					// 输出导出的函数名
-					if d.Name.IsExported() {
+					if d.Name.IsExported() && !isMethod(d) {
 						fmt.Printf("%s function\n", d.Name.Name)
 					}
 				}
 			}
 		}
 	}
+}
+
+func isMethod(decl *ast.FuncDecl) bool {
+	return decl.Recv != nil
 }
