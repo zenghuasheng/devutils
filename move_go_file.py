@@ -451,7 +451,7 @@ class MoveGo:
                     if len(symbols) == 0:
                         continue
                     symbol_str = '\n'.join(symbols)
-                    errors.append(f'{file} use these symbols in {self.source_package_path}, '
+                    errors.append(f'{file} use these symbols in {os.path.basename(self.source)}, '
                                   f'you must change it first: \n'
                                   f'{symbol_str}')
             if len(errors) > 0:
@@ -491,5 +491,5 @@ if __name__ == '__main__':
             print('move dir')
             move_dir(args.main_dir, args.go_path, args.source, args.target)
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"Error:\n{e}")
         sys.exit(1)
