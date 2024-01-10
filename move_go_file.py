@@ -287,10 +287,8 @@ class MoveGo:
     def replace(self):
         # 此文件用了包的导出的、未导出的 symbols
         self.source_use_package_symbols()
-        # 包的其他文件用了此文件的未导出的 symbols
-        self.source_package_use_file_unexported_symbol()
-        # 包的其他文件用了此文件的导出的 symbols
-        self.source_package_use_file_exported_symbol()
+        # 包的其他文件用了此文件的导出的、未导出的 symbols
+        self.source_package_use_file_symbol()
 
         # 读取文件 A 内容，列出所有 package 的函数，常量
         # self.imported_files = ['/Users/xhs/go/src/github.com/bangwork/bang-api-gomod/app/services/manhour/message.go']
@@ -329,7 +327,7 @@ class MoveGo:
                 else:
                     have_symbol = False
                     for s in self.file_exported_symbol_names:
-                        if re.search(r'\b' + re.escape(s) + r'\b', go_code):
+                        if re.search(r'\b' + re.escape(f'{name}.{s}') + r'\b', go_code):
                             have_symbol = True
                             break
                     if not have_symbol:
@@ -430,7 +428,7 @@ class MoveGo:
                                 f'{self.source_package_path}, you must move them to {self.source} first: \n'
                                 f'{used_symbols_str}')
 
-    def source_package_use_file_unexported_symbol(self):
+    def source_package_use_file_symbol(self):
         for root, dirs, files in os.walk(os.path.join(self.main_dir, self.source_package_path)):
             errors = []
             for file in files:
@@ -445,13 +443,248 @@ class MoveGo:
                     go_code = f.read()
                     # 查找是否含有某个 symbol
                     symbols = []
-                    for s in self.file_unexported_symbol_names:
+                    for s in self.file_unexported_symbol_names + self.file_exported_symbol_names:
                         if include_symbol(s, go_code):
                             symbols.append(s)
                     if len(symbols) == 0:
                         continue
                     symbol_str = '\n'.join(symbols)
                     errors.append(f'{file} use these symbols in {os.path.basename(self.source)}, '
+                                  f'you must change it first: \n'
+                                  f'{symbol_str}')
+            if len(errors) > 0:
+                error_str = '\n'.join(errors)
+                raise Exception(error_str)
+            break
+        pass
+
+
+class MoveGoFiles:
+    sources = []
+    target = None
+    main_dir = None
+    go_path = None
+    symbol_bin_path = None
+    source_package_path = None
+    target_package_path = None
+    package_exported_symbol_names = []
+    package_unexported_symbol_names = []
+    file_exported_symbol_names = []
+    file_unexported_symbol_names = []
+    imported_files = []
+    debug = False
+
+    def __init__(self, main_dir, go_path, symbol_bin_path, sources, target, debug=False):
+        self.main_dir = main_dir
+        self.go_path = go_path
+        self.symbol_bin_path = symbol_bin_path
+        self.sources = sources
+        self.target = target
+        self.debug = debug
+
+    def extract_go_info(self):
+        self.source_package_path = os.path.dirname(self.sources[0])
+        print(f'package path: {self.source_package_path}')
+        self.target_package_path = self.target
+        self.package_exported_symbol_names, self.package_unexported_symbol_names = self.extract_symbols(
+            self.sources[0],
+            include_package=True)
+        for source in self.sources:
+            exported, unexported = self.extract_symbols(source)
+            # self.file_exported_symbol_names, self.file_unexported_symbol_names
+            self.file_exported_symbol_names.extend(exported)
+            self.file_unexported_symbol_names.extend(unexported)
+
+    def extract_symbols(self, file_path, include_package=False):
+        # 提取所有暴露的 symbol
+        os.chdir(self.main_dir)
+        current_env = os.environ.copy()
+        cmd_list = [self.symbol_bin_path, os.path.join(self.main_dir, file_path)]
+        if include_package:
+            cmd_list.append('all')
+        cmd = " ".join(cmd_list)
+        if self.debug:
+            print(cmd)
+        result = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                cwd=self.main_dir, env=current_env)
+        if result.returncode != 0:
+            raise Exception(f'extract symbol failed: {result.stderr.decode("utf-8")}')
+        doc = result.stdout.decode('utf-8')
+        # 返回是 json
+        symbols = []
+        if not doc:
+            return symbols
+        symbols = json.loads(doc)
+        return [s['name'] for s in symbols['exported']], [s['name'] for s in symbols['unexported']]
+
+    def search_imported_files(self):
+        # 搜索所有文件，找到所有 import 了 package 的文件，可能有别名，设为文件 A
+        # grep -r "github\.com/bangwork/bang-api/app/models" --include='*.go' /Users/xhs/go/src/github.com/bangwork/bang-api-gomod | cut -d ':' -f 1 | more
+        cmd = f'grep -r "\\"github\.com/bangwork/bang-api/{self.source_package_path}\\"" --include="*.go" {self.main_dir} | cut -d ":" -f 1'
+        if self.debug:
+            print(cmd)
+        result = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if result.returncode != 0:
+            raise Exception(f'grep failed: {result.stderr.decode("utf-8")}')
+        self.imported_files = result.stdout.decode('utf-8').split('\n')
+        # 去掉空行
+        self.imported_files = list(filter(None, self.imported_files))
+
+    def replace(self):
+        # 此文件用了包的导出的、未导出的 symbols
+        self.source_use_package_symbols()
+        # 包的其他文件用了此文件的导出的、未导出的 symbols
+        self.source_package_use_file_symbol()
+
+        # 读取文件 A 内容，列出所有 package 的函数，常量
+        # self.imported_files = ['/Users/xhs/go/src/github.com/bangwork/bang-api-gomod/project-api/project/services/card/carddelegates/project_overview.go']
+        for file_path in self.imported_files:
+            if self.debug:
+                print(f'processing {file_path}')
+            with open(file_path, 'r+') as f:
+                go_code = f.read()
+                # 如果 imported_packages 不为空，排序
+                imported_packages = get_file_imported_packages(go_code)
+                name = search_name(imported_packages, self.source_package_path)
+                if not name:
+                    raise Exception(f'package {self.source_package_path} not found in {f}')
+                # 列出所有 package 的函数，常量
+                function_calls, other_symbols = find_package_symbols(go_code, name)
+                file_symbols = []
+                for s in function_calls + other_symbols:
+                    file_symbols.append(s.split('.')[1])
+                if len(file_symbols) == 0:
+                    raise Exception(f'package {self.source_package_path} not found in {f}')
+                # 取 package_symbol_names 和 file_symbols 的交集
+                file_symbols = list(set(file_symbols).intersection(set(self.package_exported_symbol_names)))
+                if self.debug:
+                    print(f'file symbols: {file_symbols}')
+                # 判断要替换的函数和常量是否都包含于原始文件里，如果是，替换包名，如果不是，加一个别名，比如 xxx2，插入一行 import
+                # 判断 file_symbols 是否都包含于 symbol_names
+
+                # 将文件指针移动回文件开头
+                f.seek(0)
+
+                if set(file_symbols).issubset(set(self.file_exported_symbol_names)):
+                    # 替换 import 就行
+                    go_code = go_code.replace(f'"github.com/bangwork/bang-api/{self.source_package_path}"',
+                                              f'"github.com/bangwork/bang-api/{self.target_package_path}"')
+                    f.write(go_code)
+                else:
+                    have_symbol = False
+                    for s in self.file_exported_symbol_names:
+                        if re.search(r'\b' + re.escape(f'{name}.{s}') + r'\b', go_code):
+                            have_symbol = True
+                            break
+                    if not have_symbol:
+                        continue
+                    # 加一个别名，比如 xxx2，插入一行 import
+                    go_code = add_import(go_code, f'{name}2 "github.com/bangwork/bang-api/{self.target_package_path}"')
+                    # 替换
+                    for s in self.file_exported_symbol_names:
+                        go_code = re.sub(r'\b' + re.escape(f'{name}.{s}') + r'\b', f'{name}2.{s}', go_code)
+                    f.write(go_code)
+                # 截断文件，删除多余的内容（如果新内容比旧内容短）
+                f.truncate()
+
+        # 移动文件
+        # 取 target 的父目录，如果不存在，创建
+        if not os.path.exists(self.target):
+            os.makedirs(self.target, exist_ok=True)
+        for source in self.sources:
+            source_name = os.path.basename(source)
+            mv_cmd = f'mv {source} {os.path.join(self.target, source_name)}'
+            if self.debug:
+                print(mv_cmd)
+            result = subprocess.run(mv_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                    cwd=self.main_dir)
+            if result.returncode != 0:
+                raise Exception(f'mv failed: {result.stderr.decode("utf-8")}')
+        # 编译
+        source_name_str = ', '.join(self.sources)
+        self.build_commit(f'move {source_name_str} to {self.target}')
+
+    def build_commit(self, commit_message):
+        # 执行构建命令
+        if not os.path.exists(self.go_path):
+            raise Exception(f'go_path "{self.go_path}" not exists')
+        build_command = f'{self.go_path} build  -o /tmp/'
+        build_result = subprocess.run(build_command, shell=True, check=False)
+
+        # 检查构建结果
+        if build_result.returncode == 0:
+            # 构建成功，自动提交修改
+            git_commit_command = f'git add . && git commit -m "{commit_message}"'
+            commit_result = subprocess.run(git_commit_command, shell=True, stdout=subprocess.PIPE,
+                                           stderr=subprocess.PIPE)
+            if commit_result.returncode != 0 and \
+                    "nothing to commit, working tree clean" not in commit_result.stdout.decode("utf-8"):
+                print(f'Commit failed, Please check the modifications.')
+                raise Exception(f'Commit failed: {commit_result.stderr.decode("utf-8")}')
+        else:
+            raise Exception(f'Build failed, Please check the modifications.')
+
+    def source_package_use_file_exported_symbol(self):
+        source_names = [os.path.basename(source) for source in self.sources]
+        for root, dirs, files in os.walk(os.path.join(self.main_dir, self.source_package_path)):
+            for file in files:
+                # 是否是 .go 文件
+                if not is_go_file(file):
+                    continue
+                # 如果是 source，跳过
+                if file in source_names:
+                    continue
+                file_path = os.path.join(root, file)
+                with open(file_path, 'r+') as f:
+                    go_code = f.read()
+                    # 查找是否含有某个 symbol
+                    have_symbol = False
+            break
+
+    def source_use_package_symbols(self):
+        for source in self.sources:
+            with open(os.path.join(self.main_dir, source), 'r') as f:
+                go_code = f.read()
+                # self.package_symbol_names - self.file_symbol_names
+                # 求差集
+                exported_diff = list(
+                    set(self.package_exported_symbol_names).difference(set(self.file_exported_symbol_names)))
+                unexported_diff = list(
+                    set(self.package_unexported_symbol_names).difference(set(self.file_unexported_symbol_names)))
+                # 查找是否含有某个 symbol
+                used_symbols = []
+                for s in exported_diff + unexported_diff:
+                    if include_symbol(s, go_code):
+                        used_symbols.append(s)
+                if len(used_symbols) > 0:
+                    used_symbols_str = '\n'.join(used_symbols)
+                    raise Exception(f'{source} use these symbols in package '
+                                    f'{self.source_package_path}, you must move them to {source} first: \n'
+                                    f'{used_symbols_str}')
+
+    def source_package_use_file_symbol(self):
+        for root, dirs, files in os.walk(os.path.join(self.main_dir, self.source_package_path)):
+            errors = []
+            source_names = [os.path.basename(source) for source in self.sources]
+            for file in files:
+                # 是否是 .go 文件
+                if not is_go_file(file):
+                    continue
+                # 如果是 source，跳过
+                if file in source_names:
+                    continue
+                file_path = os.path.join(root, file)
+                with open(file_path, 'r+') as f:
+                    go_code = f.read()
+                    # 查找是否含有某个 symbol
+                    symbols = []
+                    for s in self.file_unexported_symbol_names + self.file_exported_symbol_names:
+                        if include_symbol(s, go_code):
+                            symbols.append(s)
+                    if len(symbols) == 0:
+                        continue
+                    symbol_str = '\n'.join(symbols)
+                    errors.append(f'{file} use these symbols in {source_names}, '
                                   f'you must change it first: \n'
                                   f'{symbol_str}')
             if len(errors) > 0:
@@ -472,21 +705,28 @@ if __name__ == '__main__':
         sys.exit(1)
     try:
         # 先判断 source, target 是否是 .go 文件
-        if is_go_file(args.source) and is_go_file(args.target):
-            # 如果 target 已经存在，报错
-            if os.path.exists(os.path.join(args.main_dir, args.target)):
-                print(f'target "{args.target}" already exists')
-                sys.exit(1)
+        if is_go_file(args.source):
             if not os.path.exists(args.symbol_bin_path):
                 print(f'symbol_bin_path "{args.symbol_bin_path}" not exists')
                 sys.exit(1)
-            print('move go file')
-            move_go = MoveGo(args.main_dir, args.go_path, args.symbol_bin_path, args.source, args.target, args.debug)
-            # 第一步：提取原始文件的 package 名称、对外暴露的方法、常量
-            move_go.extract_go_info()
-            # 第二步：搜索所有文件，找到所有 import 了 package 的文件，可能有别名，设为文件 A
-            move_go.search_imported_files()
-            move_go.replace()
+            if is_go_file(args.target):
+                print('move go file')
+                move_go = MoveGo(args.main_dir, args.go_path, args.symbol_bin_path, args.source, args.target,
+                                 args.debug)
+                # 第一步：提取原始文件的 package 名称、对外暴露的方法、常量
+                move_go.extract_go_info()
+                # 第二步：搜索所有文件，找到所有 import 了 package 的文件，可能有别名，设为文件 A
+                move_go.search_imported_files()
+                move_go.replace()
+            else:
+                print('move go files')
+                # 英文逗号分隔
+                sources = args.source.split(',')
+                move_go_files = MoveGoFiles(args.main_dir, args.go_path, args.symbol_bin_path, sources, args.target,
+                                            args.debug)
+                move_go_files.extract_go_info()
+                move_go_files.search_imported_files()
+                move_go_files.replace()
         else:
             print('move dir')
             move_dir(args.main_dir, args.go_path, args.source, args.target)

@@ -946,7 +946,10 @@ if __name__ == "__main__":
     output_name = "dependency"
     if len(directory_paths) == 1:
         # 取最后两级作为文件名
-        output_name = directory_paths[0].split("/")[-2] + "_" + directory_paths[0].split("/")[-1]
+        if len(directory_paths[0].split("/")) > 2:
+            output_name = directory_paths[0].split("/")[-2] + "_" + directory_paths[0].split("/")[-1]
+        else:
+            output_name = directory_paths[0].split("/")[-1]
     # 按 Module 列排序，倒序
     # dependency_data = sorted(dependency_data, key=lambda x: x[5], reverse=True)
     # 按 FunctionDeclaration 列排序
