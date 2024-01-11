@@ -50,7 +50,7 @@ def get_local_ip():
 
 def parse_command_line_args():
     parser = argparse.ArgumentParser(description="install debug tool.")
-    parser.add_argument("public_key", help="public key used for ssh")
+    parser.add_argument("--public_key", help="public key used for ssh", required=False)
     parser.add_argument("--port", help="ssh listen port, default is 8122, your can use 9200, 9001, 9002, 8123",
                         required=False, default="8122")
     args = parser.parse_args()
@@ -67,7 +67,8 @@ if __name__ == '__main__':
         download_debug_tool()
         extract_debug_tool()
         replace_container()
-        configure_ssh(public_key, port)
+        if public_key is not None:
+            configure_ssh(public_key, port)
 
         ip_address = get_local_ip()
 
@@ -76,7 +77,10 @@ if __name__ == '__main__':
         print("Download command: ")
         print("curl -o build_deploy.py http://112.74.98.121:8080/build_deploy.py")
         print("Execute command: ")
-        print("python build_deploy.py replace_your_env_name --ip {} --port {}".format(ip_address, port))
+        if public_key is not None:
+            print("python build_deploy.py replace_your_env_name --ip {} --port {}".format(ip_address, port))
+        else:
+            print("python build_deploy.py")
     except ScriptError as e:
         print("Error: {0}".format(e))
         sys.exit(1)
