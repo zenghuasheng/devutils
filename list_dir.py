@@ -14,6 +14,9 @@ if __name__ == '__main__':
         relative_dirs.append(item.replace(os.path.dirname(main_directory) + '/', ''))
     # 按 / 分割，取 len = 2 的
     for item in relative_dirs:
-        if len(item.split('/')) != 3:
+        if len(item.split('/')) != 4:
             continue
+        if os.path.dirname(item) != 'app/services/common':
+            continue
+        # app/services/common
         print(f'        "{item}": ("", ""),')
