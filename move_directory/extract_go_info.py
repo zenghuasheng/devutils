@@ -1,4 +1,3 @@
-import csv
 import fnmatch
 import os
 import re
