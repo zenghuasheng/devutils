@@ -1,4 +1,5 @@
 import argparse
+import os
 import sys
 
 import openpyxl
@@ -40,16 +41,26 @@ if __name__ == '__main__':
     # 从命令行参数中获取文件路径
     args = parse_command_line_args()
     module_list = read_excel(sys.argv[1])
+    # module_list = [
+    #     ("app/utils/explain", "ones-ai-api-common", "utils/explain"),
+    # ]
     source_target_list = []
     for item in module_list:
         # 判断是否有 None
         if None in item:
             print(f'映射不完整: {item}')
             continue
-        source_target_list.append({
-            "source": item[0],
-            # 要去掉 app
-            "target": item[1] + "/" + item[2] + "/" + item[0].replace("app/", "")
-        })
+        # 如果 item[2] 包含 /，则直接作为 target
+        if "/" in item[2]:
+            source_target_list.append({
+                "source": item[0],
+                "target": os.path.join(item[1], item[2])
+            })
+        else:
+            source_target_list.append({
+                "source": item[0],
+                # 要去掉 app
+                "target": item[1] + "/" + item[2] + "/" + item[0].replace("app/", "")
+            })
     for item in source_target_list:
         move_dir(args.main_dir, args.go_path, item["source"], item["target"])
