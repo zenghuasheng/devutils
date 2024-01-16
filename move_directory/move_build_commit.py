@@ -1,19 +1,23 @@
 import argparse
 import os
+import subprocess
 import sys
 
 import openpyxl
-
 from move_go_file import move_dir
 
 
 def parse_command_line_args():
     parser = argparse.ArgumentParser(description="Script to move go directory.")
     parser.add_argument("file_path", help="file path", type=str)
-    parser.add_argument("--main-dir", help="directory path of bang-api", required=False,
-                        default='/Users/xhs/go/src/github.com/bangwork/bang-api-gomod')
-    parser.add_argument("--go-path", help="go path", required=False, default='/Users/xhs/go1.17/go1.20.1/bin/go')
+    parser.add_argument("--main-dir", help="directory path of bang-api", required=False)
+    parser.add_argument("--go-path", help="go path", required=False)
     args = parser.parse_args()
+    if not args.go_path:
+        args.go_path = subprocess.check_output(["which", "go"]).decode("utf-8").strip()
+    if not args.main_dir:
+        args.main_dir = os.path.join(subprocess.check_output([args.go_path, "env", "GOPATH"]).decode("utf-8").strip(),
+                                     "src/github.com/bangwork/bang-api")
 
     return args
 
