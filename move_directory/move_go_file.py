@@ -17,20 +17,22 @@ def parse_command_line_args():
     parser.add_argument("--symbol-bin-path", help="the symbol bin file path to extract go symbols, "
                                                   "the result of compile get_export_symbol.go", required=False,
                         default='/Users/xhs/go/src/github.com/bangwork/bang-api-gomod/tmp/extract_symbol')
+    parser.add_argument("--force", help="force move, skip check", required=False, default=False, action='store_true')
     parser.add_argument("--debug", help="debug mode", required=False, default=False, action='store_true')
+    parser.add_argument("--no-compile", help="no need to compile", required=False, default=False, action='store_true')
     args = parser.parse_args()
 
     return args
 
 
-def move_dir(main_dir, go_path, source, target):
+def move_dir(main_dir, go_path, source, target, no_compile=False):
     os.chdir(main_dir)
     print(f'Moving {source} to {target}')
     target_file = os.path.join(main_dir, target)
     # 判断 source 是否存在
     if not os.path.exists(os.path.join(main_dir, source)):
         print(f'Package "{source}" not exists')
-        exit(1)
+        return
 
     # 判断 go_path 是否存在
     if not os.path.exists(go_path):
@@ -58,12 +60,7 @@ def move_dir(main_dir, go_path, source, target):
         print(replace_command)
         subprocess.run(replace_command, shell=True)
 
-    # 执行构建命令
-    build_command = f'{go_path} build  -o /tmp/'
-    build_result = subprocess.run(build_command, shell=True, check=False)
-
-    # 检查构建结果
-    if build_result.returncode == 0:
+    if no_compile:
         # 构建成功，自动提交修改
         git_commit_command = f'git add . && git commit -m "move {source} to {target}"'
         commit_result = subprocess.run(git_commit_command, shell=True, stdout=subprocess.PIPE,
@@ -73,8 +70,23 @@ def move_dir(main_dir, go_path, source, target):
             print(f'Commit failed, Please check the modifications.')
             exit(1)
     else:
-        print(f'Build failed, Please check the modifications.')
-        exit(1)
+        # 执行构建命令
+        build_command = f'{go_path} build  -o /tmp/'
+        build_result = subprocess.run(build_command, shell=True, check=False)
+
+        # 检查构建结果
+        if build_result.returncode == 0:
+            # 构建成功，自动提交修改
+            git_commit_command = f'git add . && git commit -m "move {source} to {target}"'
+            commit_result = subprocess.run(git_commit_command, shell=True, stdout=subprocess.PIPE,
+                                           stderr=subprocess.PIPE)
+            if commit_result.returncode != 0 and "nothing to commit, working tree clean" not in commit_result.stdout.decode(
+                    "utf-8"):
+                print(f'Commit failed, Please check the modifications.')
+                exit(1)
+        else:
+            print(f'Build failed, Please check the modifications.')
+            exit(1)
 
 
 def find_package_symbols(go_code, package_name):
@@ -473,14 +485,17 @@ class MoveGoFiles:
     file_unexported_symbol_names = []
     imported_files = []
     debug = False
+    force = False
+    have_error = False
 
-    def __init__(self, main_dir, go_path, symbol_bin_path, sources, target, debug=False):
+    def __init__(self, main_dir, go_path, symbol_bin_path, sources, target, debug=False, force=False):
         self.main_dir = main_dir
         self.go_path = go_path
         self.symbol_bin_path = symbol_bin_path
         self.sources = sources
         self.target = target
         self.debug = debug
+        self.force = force
 
     def extract_go_info(self):
         self.source_package_path = os.path.dirname(self.sources[0])
@@ -536,8 +551,11 @@ class MoveGoFiles:
         # 包的其他文件用了此文件的导出的、未导出的 symbols
         self.source_package_use_file_symbol()
 
+        if self.have_error and not self.force:
+            return
+
         # 读取文件 A 内容，列出所有 package 的函数，常量
-        # self.imported_files = ['/Users/xhs/go/src/github.com/bangwork/bang-api-gomod/project-api/project/services/card/carddelegates/project_overview.go']
+        # self.imported_files = ['/Users/xhs/go/src/github.com/bangwork/bang-api-gomod/project-api/task/models/workflow/types.go']
         for file_path in self.imported_files:
             if self.debug:
                 print(f'processing {file_path}')
@@ -545,6 +563,8 @@ class MoveGoFiles:
                 go_code = f.read()
                 # 如果 imported_packages 不为空，排序
                 imported_packages = get_file_imported_packages(go_code)
+                if not imported_packages:
+                    continue
                 name = search_name(imported_packages, self.source_package_path)
                 if not name:
                     raise Exception(f'package {self.source_package_path} not found in {f}')
@@ -579,10 +599,12 @@ class MoveGoFiles:
                     if not have_symbol:
                         continue
                     # 加一个别名，比如 xxx2，插入一行 import
-                    go_code = add_import(go_code, f'{name}2 "github.com/bangwork/bang-api/{self.target_package_path}"')
+                    import_alias = f'{name}' + os.path.basename(self.target_package_path)
+                    go_code = add_import(go_code,
+                                         f'{import_alias} "github.com/bangwork/bang-api/{self.target_package_path}"')
                     # 替换
                     for s in self.file_exported_symbol_names:
-                        go_code = re.sub(r'\b' + re.escape(f'{name}.{s}') + r'\b', f'{name}2.{s}', go_code)
+                        go_code = re.sub(r'\b' + re.escape(f'{name}.{s}') + r'\b', f'{import_alias}.{s}', go_code)
                     f.write(go_code)
                 # 截断文件，删除多余的内容（如果新内容比旧内容短）
                 f.truncate()
@@ -657,10 +679,11 @@ class MoveGoFiles:
                     if include_symbol(s, go_code):
                         used_symbols.append(s)
                 if len(used_symbols) > 0:
+                    self.have_error = True
                     used_symbols_str = '\n'.join(used_symbols)
-                    raise Exception(f'{source} use these symbols in package '
-                                    f'{self.source_package_path}, you must move them to {source} first: \n'
-                                    f'{used_symbols_str}')
+                    print(
+                        f'{source} use these symbols in package {self.source_package_path}, you must move them to '
+                        f'{source} first: \n{used_symbols_str}')
 
     def source_package_use_file_symbol(self):
         for root, dirs, files in os.walk(os.path.join(self.main_dir, self.source_package_path)):
@@ -688,8 +711,9 @@ class MoveGoFiles:
                                   f'you must change it first: \n'
                                   f'{symbol_str}')
             if len(errors) > 0:
+                self.have_error = True
                 error_str = '\n'.join(errors)
-                raise Exception(error_str)
+                print(error_str)
             break
         pass
 
@@ -723,13 +747,13 @@ if __name__ == '__main__':
                 # 英文逗号分隔
                 sources = args.source.split(',')
                 move_go_files = MoveGoFiles(args.main_dir, args.go_path, args.symbol_bin_path, sources, args.target,
-                                            args.debug)
+                                            args.debug, args.force)
                 move_go_files.extract_go_info()
                 move_go_files.search_imported_files()
                 move_go_files.replace()
         else:
             print('move dir')
-            move_dir(args.main_dir, args.go_path, args.source, args.target)
+            move_dir(args.main_dir, args.go_path, args.source, args.target, args.no_compile)
     except Exception as e:
         print(f"Error:\n{e}")
         sys.exit(1)

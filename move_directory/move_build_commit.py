@@ -12,6 +12,7 @@ def parse_command_line_args():
     parser.add_argument("file_path", help="file path", type=str)
     parser.add_argument("--main-dir", help="directory path of bang-api", required=False)
     parser.add_argument("--go-path", help="go path", required=False)
+    parser.add_argument("--no-compile", help="no need to compile", required=False, default=False, action='store_true')
     args = parser.parse_args()
     if not args.go_path:
         args.go_path = subprocess.check_output(["which", "go"]).decode("utf-8").strip()
@@ -67,4 +68,4 @@ if __name__ == '__main__':
                 "target": item[1] + "/" + item[2] + "/" + item[0].replace("app/", "")
             })
     for item in source_target_list:
-        move_dir(args.main_dir, args.go_path, item["source"], item["target"])
+        move_dir(args.main_dir, args.go_path, item["source"], item["target"], args.no_compile)
