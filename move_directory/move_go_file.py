@@ -243,14 +243,17 @@ class MoveGo:
     file_unexported_symbol_names = []
     imported_files = []
     debug = False
+    have_error = False
+    force = False
 
-    def __init__(self, main_dir, go_path, symbol_bin_path, source, target, debug=False):
+    def __init__(self, main_dir, go_path, symbol_bin_path, source, target, debug=False, force=False):
         self.main_dir = main_dir
         self.go_path = go_path
         self.symbol_bin_path = symbol_bin_path
         self.source = source
         self.target = target
         self.debug = debug
+        self.force = force
 
     def extract_go_info(self):
         self.source_package_path = os.path.dirname(self.source)
@@ -302,6 +305,9 @@ class MoveGo:
         # 包的其他文件用了此文件的导出的、未导出的 symbols
         self.source_package_use_file_symbol()
 
+        if self.have_error and not self.force:
+            return
+
         # 读取文件 A 内容，列出所有 package 的函数，常量
         # self.imported_files = ['/Users/xhs/go/src/github.com/bangwork/bang-api-gomod/app/services/manhour/message.go']
         for file_path in self.imported_files:
@@ -345,10 +351,12 @@ class MoveGo:
                     if not have_symbol:
                         continue
                     # 加一个别名，比如 xxx2，插入一行 import
-                    go_code = add_import(go_code, f'{name}2 "github.com/bangwork/bang-api/{self.target_package_path}"')
+                    import_alias = f'{name}' + os.path.basename(self.target_package_path)
+                    go_code = add_import(go_code,
+                                         f'{import_alias} "github.com/bangwork/bang-api/{self.target_package_path}"')
                     # 替换
                     for s in self.file_exported_symbol_names:
-                        go_code = re.sub(r'\b' + re.escape(f'{name}.{s}') + r'\b', f'{name}2.{s}', go_code)
+                        go_code = re.sub(r'\b' + re.escape(f'{name}.{s}') + r'\b', f'{import_alias}.{s}', go_code)
                     f.write(go_code)
                 # 截断文件，删除多余的内容（如果新内容比旧内容短）
                 f.truncate()
@@ -436,9 +444,10 @@ class MoveGo:
                     used_symbols.append(s)
             if len(used_symbols) > 0:
                 used_symbols_str = '\n'.join(used_symbols)
-                raise Exception(f'{self.source} use these symbols in package '
-                                f'{self.source_package_path}, you must move them to {self.source} first: \n'
-                                f'{used_symbols_str}')
+                self.have_error = True
+                print(f'{self.source} use these symbols in package '
+                      f'{self.source_package_path}, you must move them to {self.source} first: \n'
+                      f'{used_symbols_str}')
 
     def source_package_use_file_symbol(self):
         for root, dirs, files in os.walk(os.path.join(self.main_dir, self.source_package_path)):
@@ -465,8 +474,9 @@ class MoveGo:
                                   f'you must change it first: \n'
                                   f'{symbol_str}')
             if len(errors) > 0:
+                self.have_error = True
                 error_str = '\n'.join(errors)
-                raise Exception(error_str)
+                print(error_str)
             break
         pass
 
@@ -736,7 +746,7 @@ if __name__ == '__main__':
             if is_go_file(args.target):
                 print('move go file')
                 move_go = MoveGo(args.main_dir, args.go_path, args.symbol_bin_path, args.source, args.target,
-                                 args.debug)
+                                 args.debug, args.force)
                 # 第一步：提取原始文件的 package 名称、对外暴露的方法、常量
                 move_go.extract_go_info()
                 # 第二步：搜索所有文件，找到所有 import 了 package 的文件，可能有别名，设为文件 A
