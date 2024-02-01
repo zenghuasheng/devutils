@@ -17,13 +17,26 @@ else
 fi
 
 # 解压二进制
-sh /tmp/debug_tool/uncompress.sh
+# Run the commands inside the Docker container
+docker exec $container_id bash -c '
+    # Find the latest file in /data/ones/files/private/ with size greater than or equal to 40M
+    latest_file=$(find /data/ones/files/private/ -type f -size +40M -printf "%T+ %p\n" | sort -r | head -n 1 | awk "{print \$2}")
+
+    # Check if a file is found
+    if [ -n "$latest_file" ]; then
+        # Extract the file to /tmp/
+        tar -xzvf "$latest_file" -C /tmp/
+        echo "File successfully extracted"
+    else
+        echo "No suitable file found in /data/ones/files/private/"
+    fi
+'
 
 docker cp /tmp/debug_tool/dlv $container_id:/tmp/dlv
-md5_new=$(md5sum /tmp/$bin | xargs bash -c 'echo $0')
+md5_new=$(docker exec -it $container_id md5sum /tmp/$bin | xargs bash -c 'echo $0')
 md5_old=$(docker exec -it $container_id md5sum /usr/local/ones-ai-$name-api/bin/$bin | xargs bash -c 'echo $0')
 if [ "$md5_new" != "$md5_old" ]; then
-        docker cp /tmp/$bin $container_id:/root/ones/
+        docker exec $container_id bash -c 'mv /tmp/$bin /root/ones/'
 fi
 docker exec $container_id bash -c "set -eux;
         chmod a+x /tmp/dlv;

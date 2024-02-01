@@ -1,7 +1,6 @@
+import fileinput
 import os
 import re
-import sys
-import fileinput
 
 # 定义要查找和替换的文本映射
 replacement_map = {
@@ -105,16 +104,52 @@ def process_directory(directory_path):
 
 if __name__ == '__main__':
     # 检查命令行参数
-    if len(sys.argv) != 2:
-        print("用法: python replace_text.py <目录路径>")
-        sys.exit(1)
+    # if len(sys.argv) != 2:
+    #     print("用法: python replace_text.py <目录路径>")
+    #     sys.exit(1)
+    #
+    # directory_path = sys.argv[1]
+    a_map = {
+        "activity.go": "project",
+        "card.go": "project",
+        "component.go": "project",
+        "component_detail.go": "project",
+        "component_wiki_page.go": "project",
+        "dashboard.go": "project",
+        "field.go": "project",
+        "filter.go": "project",
+        "ganttchart.go": "project",
+        "issue_type.go": "project",
+        "issue_type_scope.go": "project",
+        "layout.go": "project",
+        "object.go": "project",
+        "project.go": "project",
+        "project_field_config.go": "project",
+        "project_panel.go": "project",
+        "project_report.go": "project",
+        "project_sprint_field.go": "project",
+        "project_sprint_pipeline_setting.go": "project",
+        "project_sprint_status.go": "project",
+        "related_task.go": "project",
+        "role.go": "project",
+        "sprint.go": "project",
+        "tabconfig.go": "project",
+        "task.go": "project",
+        "task_batch.go": "project",
+        "task_link_type.go": "project",
+        "task_status.go": "project",
+        "version.go": "project",
+        "workflow.go": "project",
+        "workorder.go": "project",
+    }
 
-    directory_path = sys.argv[1]
-
-    # 判断是目录还是文件
-    if os.path.isdir(directory_path):
-        # 处理目录及子目录下的所有 .go 文件
-        process_directory(directory_path)
-    else:
-        replace_text_in_file(directory_path)
-        add_import(directory_path, "github.com/bangwork/bang-api/app/utils/httpsvc")
+    for file_name, package_name in a_map.items():
+        file_path = os.path.join("/Users/xhs/go/src/github.com/bangwork/bang-api-gomod/app/controllers", file_name)
+        replace_text_in_file(file_path)
+        add_import(file_path, "github.com/bangwork/bang-api/biz-common/utils/httpsvc")
+        # move_go = MoveGo(main_dir, go_path, symbol_bin_path, source, target)
+        # # 第一步：提取原始文件的 package 名称、对外暴露的方法、常量
+        # move_go.extract_go_info()
+        # # 第二步：搜索所有文件，找到所有 import 了 package 的文件，可能有别名，设为文件 A
+        # move_go.search_imported_files()
+        # move_go.replace()
