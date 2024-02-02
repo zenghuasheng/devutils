@@ -28,7 +28,7 @@ def count_go_lines(directory):
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
-        print("Usage: python script.py <project_directory>")
+        print("Usage: python code_lines.py <project_directory>")
         sys.exit(1)
 
     project_directory = sys.argv[1]
