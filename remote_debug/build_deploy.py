@@ -68,7 +68,7 @@ class UploadFile:
     def upload_file(self):
         # First API endpoint for obtaining upload information
         upload_url = f"{self.domain}/project/api/project/team/{self.team_uuid}/res/attachments/upload"
-        print(upload_url)
+        # print(upload_url)
         headers = {
             'Host': self.host,
             'Connection': 'keep-alive',
@@ -111,8 +111,7 @@ class UploadFile:
         if file_response.status_code != 200:
             raise Exception('File upload failed')
         file_info = file_response.json()
-        print("文件已上传到 /data/ones/files/private")
-        print(file_info)
+        print(f"文件已上传到 /data/ones/files/private/{file_info['hash']}")
 
 
 def login_ones(host, domain):

@@ -18,8 +18,10 @@ def backup_file(file_path):
         # Get the current timestamp
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
+        ext = os.path.splitext(file_path)[1]
         # Create a backup file name
-        backup_name = f"{os.path.basename(file_path)}.{timestamp}"
+        backup_name = f"{os.path.basename(file_path)}.{timestamp}{ext}"
+        # 取 file_path 的后缀
 
         # Copy the file with the backup name
         shutil.copy(file_path, os.path.join(os.path.dirname(file_path), backup_name))
