@@ -36,7 +36,7 @@ docker cp /tmp/debug_tool/dlv $container_id:/tmp/dlv
 md5_new=$(docker exec -it $container_id md5sum /tmp/$bin | xargs bash -c 'echo $0')
 md5_old=$(docker exec -it $container_id md5sum /usr/local/ones-ai-$name-api/bin/$bin | xargs bash -c 'echo $0')
 if [ "$md5_new" != "$md5_old" ]; then
-        docker exec $container_id bash -c 'mv /tmp/$bin /root/ones/'
+        docker exec $container_id bash -c "mv /tmp/bin/$bin /root/ones/"
 fi
 docker exec $container_id bash -c "set -eux;
         chmod a+x /tmp/dlv;
