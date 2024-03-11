@@ -12,7 +12,7 @@ def parse_command_line_args():
                                        "or app/services/common/organization")
     parser.add_argument("target", help="target path, like biz-common/get.go or biz-common/organization")
     parser.add_argument("--main-dir", help="directory path of bang-api", required=False,
-                        default='/Users/xhs/go/src/github.com/bangwork/bang-api-gomod')
+                        default=os.getcwd())
     parser.add_argument("--go-path", help="go path", required=False, default='/Users/xhs/go1.17/go1.20.1/bin/go')
     parser.add_argument("--symbol-bin-path", help="the symbol bin file path to extract go symbols, "
                                                   "the result of compile get_export_symbol.go", required=False,
@@ -20,12 +20,13 @@ def parse_command_line_args():
     parser.add_argument("--force", help="force move, skip check", required=False, default=False, action='store_true')
     parser.add_argument("--debug", help="debug mode", required=False, default=False, action='store_true')
     parser.add_argument("--no-compile", help="no need to compile", required=False, default=False, action='store_true')
+    parser.add_argument("--no-commit", help="no need to commit", required=False, default=False, action='store_true')
     args = parser.parse_args()
 
     return args
 
 
-def move_dir(main_dir, go_path, source, target, no_compile=False):
+def move_dir(main_dir, go_path, source, target, no_compile=False, no_commit=False):
     os.chdir(main_dir)
     print(f'Moving {source} to {target}')
     target_file = os.path.join(main_dir, target)
@@ -51,16 +52,29 @@ def move_dir(main_dir, go_path, source, target, no_compile=False):
         exit(1)
 
     # 替换 import
-    # find /Users/xhs/go/src/github.com/bangwork/bang-api-gomod/app/services/common/organization -type f -name '*.go' -exec sed -i '' 's|"github\.com/bangwork/bang-api/app/models/user"|"github\.com/bangwork/bang-api/biz-common/user/models/user"|g' {} +
-    replace_commands = [
-        f"find {main_dir} -type f -name '*.go' -exec sed -i '' 's|\"github\.com/bangwork/bang-api/{source}\"|\"github\.com/bangwork/bang-api/{target}\"|g' {{}} +",
-        f"find {main_dir} -type f -name '*.go' -exec sed -i '' 's|\"github\.com/bangwork/bang-api/{source}/|\"github\.com/bangwork/bang-api/{target}/|g' {{}} +",
-    ]
+    replace_commands = []
+    # 一共有 3 个仓库需要替换
+    repo_dirs = ['ones-api-biz-common', 'ones-project-api', 'bang-api-gomod']
+    dir_repo_map = {
+        'bang-api-gomod': 'bang-api',
+        'ones-api-biz-common': 'ones-api-biz-common',
+        'ones-project-api': 'ones-project-api'
+    }
+    for repo_dir in repo_dirs:
+        # dir 需要 main_dir 回到上一级目录 + repo_dir
+        find_dir = os.path.join(os.path.dirname(main_dir), repo_dir)
+        repo = dir_repo_map.get(os.path.basename(main_dir), os.path.basename(main_dir))
+        replace_commands += [
+            f"find {find_dir} -type f -name '*.go' -exec sed -i '' 's|\"github\.com/bangwork/{repo}/{source}\"|\"github\.com/bangwork/{repo}/{target}\"|g' {{}} +",
+            f"find {find_dir} -type f -name '*.go' -exec sed -i '' 's|\"github\.com/bangwork/{repo}/{source}/|\"github\.com/bangwork/{repo}/{target}/|g' {{}} +",
+        ]
     for replace_command in replace_commands:
         print(replace_command)
         subprocess.run(replace_command, shell=True)
 
     if no_compile:
+        if no_commit:
+            return
         # 构建成功，自动提交修改
         git_commit_command = f'git add . && git commit -m "move {source} to {target}"'
         commit_result = subprocess.run(git_commit_command, shell=True, stdout=subprocess.PIPE,
@@ -288,7 +302,6 @@ class MoveGo:
 
     def search_imported_files(self):
         # 搜索所有文件，找到所有 import 了 package 的文件，可能有别名，设为文件 A
-        # grep -r "github\.com/bangwork/bang-api/app/models" --include='*.go' /Users/xhs/go/src/github.com/bangwork/bang-api-gomod | cut -d ':' -f 1 | more
         cmd = f'grep -r "\\"github\.com/bangwork/bang-api/{self.source_package_path}\\"" --include="*.go" {self.main_dir} | cut -d ":" -f 1'
         if self.debug:
             print(cmd)
@@ -309,7 +322,6 @@ class MoveGo:
             return
 
         # 读取文件 A 内容，列出所有 package 的函数，常量
-        # self.imported_files = ['/Users/xhs/go/src/github.com/bangwork/bang-api-gomod/app/services/manhour/message.go']
         for file_path in self.imported_files:
             if self.debug:
                 print(f'processing {file_path}')
@@ -544,7 +556,6 @@ class MoveGoFiles:
 
     def search_imported_files(self):
         # 搜索所有文件，找到所有 import 了 package 的文件，可能有别名，设为文件 A
-        # grep -r "github\.com/bangwork/bang-api/app/models" --include='*.go' /Users/xhs/go/src/github.com/bangwork/bang-api-gomod | cut -d ':' -f 1 | more
         cmd = f'grep -r "\\"github\.com/bangwork/bang-api/{self.source_package_path}\\"" --include="*.go" {self.main_dir} | cut -d ":" -f 1'
         if self.debug:
             print(cmd)
@@ -565,7 +576,6 @@ class MoveGoFiles:
             return
 
         # 读取文件 A 内容，列出所有 package 的函数，常量
-        # self.imported_files = ['/Users/xhs/go/src/github.com/bangwork/bang-api-gomod/project-api/task/models/workflow/types.go']
         for file_path in self.imported_files:
             if self.debug:
                 print(f'processing {file_path}')
@@ -734,6 +744,7 @@ if __name__ == '__main__':
     if not os.path.exists(args.main_dir):
         print(f'main_dir "{args.main_dir}" not exists')
         sys.exit(1)
+    print(f'main_dir: {args.main_dir}')
     if not os.path.exists(args.go_path):
         print(f'go_path "{args.go_path}" not exists')
         sys.exit(1)
@@ -763,7 +774,7 @@ if __name__ == '__main__':
                 move_go_files.replace()
         else:
             print('move dir')
-            move_dir(args.main_dir, args.go_path, args.source, args.target, args.no_compile)
+            move_dir(args.main_dir, args.go_path, args.source, args.target, args.no_compile, args.no_commit)
     except Exception as e:
         print(f"Error:\n{e}")
         sys.exit(1)
