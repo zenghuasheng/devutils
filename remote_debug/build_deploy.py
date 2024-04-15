@@ -23,19 +23,33 @@ def parse_command_line_args():
     return args
 
 
-def check_sync_status():
-    consecutive_success = 0
+def get_local_debug_bin_md5(bin_name):
+    # 计算本地 debug_bin 文件的 MD5 值
+    result = subprocess.run(["md5", bin_name], capture_output=True, text=True)
+    if result.returncode == 0:
+        return result.stdout.strip().split()[-1]
+    else:
+        return None
+
+
+def get_remote_debug_bin_md5(bin_name, ip, username):
+    # 在远程服务器上计算 debug_bin 文件的 MD5 值
+    result = subprocess.run(["ssh", f"{username}@{ip}", "md5sum", bin_name], capture_output=True, text=True)
+    if result.returncode == 0:
+        return result.stdout.strip().split()[0]
+    else:
+        return None
+
+
+def check_sync_status(bin_name, ip, username):
+    local_md5 = get_local_debug_bin_md5(bin_name)
+    print(f"local_md5: {local_md5}")
     while True:
         time.sleep(1)
-        status_output = subprocess.run(["okteto", "status", "--info"], capture_output=True, text=True)
-        status = status_output.stdout
-        if "Synchronization status: 100.00%" in status:
-            consecutive_success += 1
-            if consecutive_success >= 2:
-                return True
-        else:
-            consecutive_success = 0
-            # print(status)
+        remote_md5 = get_remote_debug_bin_md5(bin_name, ip, username)
+        print(f"remote_md5: {remote_md5}")
+        if remote_md5 and local_md5 == remote_md5:
+            return True
 
 
 def parse_ssh_config():
@@ -82,6 +96,7 @@ if __name__ == '__main__':
         if not ip:
             exit_with_error("无法根据服务名找到 ssh 配置，可能还没执行 okteto up，请检查 ~/.ssh/config 文件。")
         bin_name = 'debug_bin'
+        username = 'root'
         if not args.only_restart:
             # 检查当前目录是否为项目根目录，有 go.mod 文件，或者有 vendor 目录
             if not (os.path.isfile('go.mod') or os.path.isdir('vendor')):
@@ -100,12 +115,11 @@ if __name__ == '__main__':
                 exit_with_error("Go build failed.")
             print("编译完成，准备同步")
             # 检测同步状态
-            check_sync_status()
+            check_sync_status(bin_name, ip, username)
             print("二进制已同步完成")
         # 重启
         print("正在重启服务")
         # 先杀死原来的 dlv 进程
-        username = 'root'
         print("执行 pkill dlv")
         subprocess.run(["ssh", f"{username}@{ip}", "pkill dlv"])
         print("")
