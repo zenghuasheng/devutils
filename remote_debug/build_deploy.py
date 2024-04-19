@@ -18,6 +18,8 @@ def parse_command_line_args():
 
     # 添加位置参数
     parser.add_argument("--only-restart", action="store_true", help="Only restart the service")
+    # dlv 路径
+    parser.add_argument("--dlv-path", type=str, default="/root/go/bin/dlv", help="Path to dlv binary")
 
     args = parser.parse_args()
     return args
@@ -125,7 +127,7 @@ if __name__ == '__main__':
         print("")
         # 重启服务
         subprocess.run(["ssh", f"{username}@{ip}",
-                        f"/go/bin/dlv --listen=:10086 --headless=true --accept-multiclient --api-version=2 exec {bin_name}"])
+                        f"{args.dlv_path} --listen=:10086 --headless=true --accept-multiclient --api-version=2 exec {bin_name}"])
     except ScriptError as e:
         print(f"Error: {e}")
         sys.exit(1)
