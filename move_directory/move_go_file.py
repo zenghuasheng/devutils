@@ -29,7 +29,27 @@ def parse_command_line_args():
 def move_dir(main_dir, go_path, source, target, no_compile=False, no_commit=False):
     os.chdir(main_dir)
     print(f'Moving {source} to {target}')
-    target_file = os.path.join(main_dir, target)
+    # ones-api-biz-common/utils/rate_limit
+    # 取 / 的第一个
+    parts = target.split('/')
+    target_base = parts[0]
+    repos = ['ones-api-biz-common', 'ones-project-api', 'bang-api']
+    is_cross_repo_move = False
+    if target_base in repos:
+        is_cross_repo_move = True
+        repo_dir_map = {
+            'ones-api-biz-common': 'ones-api-biz-common',
+            'ones-project-api': 'ones-project-api',
+            'bang-api': 'bang-api-gomod'
+        }
+        # 取 按 / 划分，除了第一个后面部分
+        if len(parts) > 1:
+            target_dir = '/'.join(target.split('/')[1:])
+            target_file = os.path.join(os.path.dirname(main_dir), repo_dir_map[target_base], target_dir)
+        else:
+            raise Exception(f'Invalid target: {target}')
+    else:
+        target_file = os.path.join(main_dir, target)
     # 判断 source 是否存在
     if not os.path.exists(os.path.join(main_dir, source)):
         print(f'Package "{source}" not exists')
@@ -49,7 +69,13 @@ def move_dir(main_dir, go_path, source, target, no_compile=False, no_commit=Fals
     move_result = subprocess.run(move_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     if move_result.returncode != 0:
         print(f'Move failed, Please check the modifications.')
-        exit(1)
+        # 把该目录的所有文件移过去
+        # move_file_command = f'mv {os.path.join(main_dir, source)}/* {os.path.join(main_dir, target)}/'
+        # move_file_result = subprocess.run(move_file_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        # if move_file_result.returncode != 0:
+        #     print(f'Move files failed, Please check the modifications.')
+        #     exit(1)
+        # exit(1)
 
     # 替换 import
     replace_commands = []
@@ -60,13 +86,16 @@ def move_dir(main_dir, go_path, source, target, no_compile=False, no_commit=Fals
         'ones-api-biz-common': 'ones-api-biz-common',
         'ones-project-api': 'ones-project-api'
     }
+    repo = dir_repo_map.get(os.path.basename(main_dir), os.path.basename(main_dir))
+    target_dir = f"{repo}/{target}"
+    if is_cross_repo_move:
+        target_dir = target
     for repo_dir in repo_dirs:
         # dir 需要 main_dir 回到上一级目录 + repo_dir
         find_dir = os.path.join(os.path.dirname(main_dir), repo_dir)
-        repo = dir_repo_map.get(os.path.basename(main_dir), os.path.basename(main_dir))
         replace_commands += [
-            f"find {find_dir} -type f -name '*.go' -exec sed -i '' 's|\"github\.com/bangwork/{repo}/{source}\"|\"github\.com/bangwork/{repo}/{target}\"|g' {{}} +",
-            f"find {find_dir} -type f -name '*.go' -exec sed -i '' 's|\"github\.com/bangwork/{repo}/{source}/|\"github\.com/bangwork/{repo}/{target}/|g' {{}} +",
+            f"find {find_dir} -type f -name '*.go' -exec sed -i '' 's|\"github\.com/bangwork/{repo}/{source}\"|\"github\.com/bangwork/{target_dir}\"|g' {{}} +",
+            f"find {find_dir} -type f -name '*.go' -exec sed -i '' 's|\"github\.com/bangwork/{repo}/{source}/|\"github\.com/bangwork/{target_dir}/|g' {{}} +",
         ]
     for replace_command in replace_commands:
         print(replace_command)
@@ -748,6 +777,58 @@ if __name__ == '__main__':
     if not os.path.exists(args.go_path):
         print(f'go_path "{args.go_path}" not exists')
         sys.exit(1)
+
+    # move_dirs = [
+    #     # ("cache", "store/cache"),
+    #
+    #     # ("db", "store/db"),
+    #     # ("es", "store/es"),
+    #     # ("liststore", "store/liststore"),
+    #     # ("loader", "store/loader"),
+    #     # ("redis", "store/redis"),
+    #     # ("stamp", "store/stamp"),
+    #     # ("models", "store/models"),
+    #     # ("custom_language/models/custom_language", "i18n/models/custom_language"),
+    #     # ("custom_language/services/custom_language", "i18n/services/custom_language"),
+    #     # ("i18n", "i18n"),
+    #     # ("manhour", "foundation/manhour"),
+    #     # ("permission", "foundation/permission"),
+    #     # ("resource", "foundation/resource"),
+    #     # ("setting", "foundation/setting"),
+    #     # ("team", "foundation/team"),
+    #     # ("userdomain", "foundation/userdomain"),
+    #     # ("audit_log", "audit_log"),
+    #     # ("message", "notification/message"),
+    #     # ("notify", "notification/notify"),
+    #     # ("condition", "business/condition"),
+    #     # ("container", "business/container"),
+    #     # ("context", "business/context"),
+    #     # ("environment", "business/environment"),
+    #     # ("importerbase", "business/importerbase"),
+    #     # ("item", "business/item"),
+    #     # ("mutex", "business/mutex"),
+    #     # ("operations", "business/operations"),
+    #     # ("related", "business/related"),
+    #     # ("auth", "auth"),
+    #     # ("license", "auth/license"),
+    #
+    #     # user
+    #     # ("user", "foundation/user"),
+    #
+    #     # foundation/team/models/team
+    #     # store/db/models/db
+    #     # store/es/models/es
+    #     ("foundation/team/models/team", "foundation/team"),
+    #     ("store/db/models/db", "store/db"),
+    #     ("store/es/models/es", "store/es"),
+    # ]
+    # for dirs in move_dirs:
+    #     source = dirs[0]
+    #     target = dirs[1]
+    #     if source == target:
+    #         continue
+    #     move_dir(args.main_dir, args.go_path, source, target, True, True)
+    # sys.exit(0)
     try:
         # 先判断 source, target 是否是 .go 文件
         if is_go_file(args.source):

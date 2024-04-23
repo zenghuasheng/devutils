@@ -90,6 +90,8 @@ if __name__ == '__main__':
         ssh_config = parse_ssh_config()
         service_path_name_map = {
             "bang-api-gomod": "project-api",
+            "bang-api-docker": "project-api",
+            "bang-api": "project-api",
         }
         if service_name in service_path_name_map:
             service_name = service_path_name_map[service_name]

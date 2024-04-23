@@ -103,56 +103,174 @@ if __name__ == '__main__':
     #     "template/pandoc/custom-reference.docx",
     #     "tests/backlog/sprint_estimated_test.go",
     # ]
+    # files_path_map = [
+    #     ("app/controllers/task_batch.go", "project-api/task/controllers/task_batch.go"),
+    #     ("app/controllers/workflow.go", "project-api/task/controllers/workflow.go"),
+    #     ("app/core/task/internal/domain/relation/publish_version.go",
+    #      "project-api/task/core/task/internal/domain/relation/publish_version.go"),
+    #     ("app/core/task/transit.go", "project-api/task/core/task/transit.go"),
+    #     ("app/core/task/update.go", "project-api/task/core/task/update.go"),
+    #     ("app/core/utils/di/container.go", "project-api/task/core/utils/di/container.go"),
+    #     ("app/core/utils/di/di.go", "project-api/task/core/utils/di/di.go"),
+    #     ("app/models/audit_log/constants.go", "biz-common/audit_log/models/audit_log/constants.go"),
+    #     ("app/models/batch/batch_task.go", "biz-common/batch/models/batch/batch_task.go"),
+    #     ("app/models/batch/types.go", "biz-common/batch/models/batch/types.go"),
+    #     ("app/models/deliverable/deliverable.go", "project-api/ppm/models/deliverable/deliverable.go"),
+    #     ("app/models/field/field_value.go", "project-api/task/models/field/field_value.go"),
+    #     ("app/models/i18n/audit_log.go", "biz-common/i18n/models/i18n/audit_log.go"),
+    #     ("app/models/milestone/milestone.go", "project-api/ppm/models/milestone/milestone.go"),
+    #     ("app/models/pages/page.go", "project-api/project/models/pages/page.go"),
+    #     ("app/models/resource/resource.go", "biz-common/resource/models/resource/resource.go"),
+    #     ("app/models/utils/constant.go", "biz-common/models/utils/constant.go"),
+    #     ("app/models/utils/entity.go", "biz-common/models/utils/entity.go"),
+    #     ("app/services/batch/attachments/batch_download.go",
+    #      "biz-common/batch/services/batch/attachments/batch_download.go"),
+    #     ("app/services/card/carddelegates/announcement.go",
+    #      "project-api/project/services/card/carddelegates/announcement.go"),
+    #     ("app/services/common/container/permission.go", "project-api/project/services/common/container/permission.go"),
+    #     ("app/services/component/wikipage/related_wiki_pages.go",
+    #      "project-api/project/services/component/wikipage/related_wiki_pages.go"),
+    #     ("app/services/dashboard/types.go", "project-api/project/services/dashboard/types.go"),
+    #     ("app/services/layout/block/tab.go", "project-api/task/services/layout/block/tab.go"),
+    #     ("app/services/layout/draft/shaper.go", "project-api/task/services/layout/draft/shaper.go"),
+    #     ("app/services/message/refactor/common_event.go", "project-api/task/services/message/refactor/common_event.go"),
+    #     ("app/services/message/refactor/task_created_event.go",
+    #      "project-api/task/services/message/refactor/task_created_event.go"),
+    #     ("app/services/message/refactor/utils.go", "project-api/task/services/message/refactor/utils.go"),
+    #     ("app/services/plugin_info/plugin_info.go", ""),
+    #     ("app/services/report/project/export.go", "project-api/project/services/report/project/export.go"),
+    #     ("app/services/task/bind_wiki_page.go", "project-api/task/services/task/bind_wiki_page.go"),
+    #     # 看起来这个文件被删掉了
+    #     # ("app/services/task/wiki_page_executor.go", ""),
+    #     ("app/utils/errors/code.go", "biz-common/errors/utils/errors/code.go"),
+    #     ("app/utils/wikiutils/types.go", "biz-common/utils/wikiutils/types.go"),
+    #     ("app/utils/wikiutils/utils.go", "biz-common/utils/wikiutils/utils.go"),
+    #     ("app/utils/wikiutils/wiki_api.go", "biz-common/utils/wikiutils/wiki_api.go"),
+    #     ("docs/project_swagger.yaml", ""),
+    #     ("go.mod", ""),
+    #     ("go.sum", ""),
+    #     ("locales/i18n.json", ""),
+    #     ("migration/upgrade.yaml", ""),
+    #     ("template/component/sprint/v2.json", ""),
+    #     ("template/pandoc/custom-reference.docx", ""),
+    # ]
+
     files_path_map = [
-        ("app/controllers/task_batch.go", "project-api/task/controllers/task_batch.go"),
-        ("app/controllers/workflow.go", "project-api/task/controllers/workflow.go"),
-        ("app/core/task/internal/domain/relation/publish_version.go",
-         "project-api/task/core/task/internal/domain/relation/publish_version.go"),
-        ("app/core/task/transit.go", "project-api/task/core/task/transit.go"),
-        ("app/core/task/update.go", "project-api/task/core/task/update.go"),
-        ("app/core/utils/di/container.go", "project-api/task/core/utils/di/container.go"),
-        ("app/core/utils/di/di.go", "project-api/task/core/utils/di/di.go"),
-        ("app/models/audit_log/constants.go", "biz-common/audit_log/models/audit_log/constants.go"),
-        ("app/models/batch/batch_task.go", "biz-common/batch/models/batch/batch_task.go"),
-        ("app/models/batch/types.go", "biz-common/batch/models/batch/types.go"),
-        ("app/models/deliverable/deliverable.go", "project-api/ppm/models/deliverable/deliverable.go"),
-        ("app/models/field/field_value.go", "project-api/task/models/field/field_value.go"),
-        ("app/models/i18n/audit_log.go", "biz-common/i18n/models/i18n/audit_log.go"),
-        ("app/models/milestone/milestone.go", "project-api/ppm/models/milestone/milestone.go"),
-        ("app/models/pages/page.go", "project-api/project/models/pages/page.go"),
-        ("app/models/resource/resource.go", "biz-common/resource/models/resource/resource.go"),
-        ("app/models/utils/constant.go", "biz-common/models/utils/constant.go"),
-        ("app/models/utils/entity.go", "biz-common/models/utils/entity.go"),
-        ("app/services/batch/attachments/batch_download.go",
-         "biz-common/batch/services/batch/attachments/batch_download.go"),
-        ("app/services/card/carddelegates/announcement.go",
-         "project-api/project/services/card/carddelegates/announcement.go"),
-        ("app/services/common/container/permission.go", "project-api/project/services/common/container/permission.go"),
-        ("app/services/component/wikipage/related_wiki_pages.go",
-         "project-api/project/services/component/wikipage/related_wiki_pages.go"),
-        ("app/services/dashboard/types.go", "project-api/project/services/dashboard/types.go"),
-        ("app/services/layout/block/tab.go", "project-api/task/services/layout/block/tab.go"),
-        ("app/services/layout/draft/shaper.go", "project-api/task/services/layout/draft/shaper.go"),
-        ("app/services/message/refactor/common_event.go", "project-api/task/services/message/refactor/common_event.go"),
-        ("app/services/message/refactor/task_created_event.go",
-         "project-api/task/services/message/refactor/task_created_event.go"),
-        ("app/services/message/refactor/utils.go", "project-api/task/services/message/refactor/utils.go"),
-        ("app/services/plugin_info/plugin_info.go", ""),
-        ("app/services/report/project/export.go", "project-api/project/services/report/project/export.go"),
-        ("app/services/task/bind_wiki_page.go", "project-api/task/services/task/bind_wiki_page.go"),
-        # 看起来这个文件被删掉了
-        # ("app/services/task/wiki_page_executor.go", ""),
-        ("app/utils/errors/code.go", "biz-common/errors/utils/errors/code.go"),
-        ("app/utils/wikiutils/types.go", "biz-common/utils/wikiutils/types.go"),
-        ("app/utils/wikiutils/utils.go", "biz-common/utils/wikiutils/utils.go"),
-        ("app/utils/wikiutils/wiki_api.go", "biz-common/utils/wikiutils/wiki_api.go"),
-        ("docs/project_swagger.yaml", ""),
-        ("go.mod", ""),
-        ("go.sum", ""),
-        ("locales/i18n.json", ""),
-        ("migration/upgrade.yaml", ""),
-        ("template/component/sprint/v2.json", ""),
-        ("template/pandoc/custom-reference.docx", ""),
+        ("app/controllers/copilot/copilot.go", "ones-project-api", "app/task/controllers/copilot/copilot.go"),
+        ("app/controllers/copilot/setting.go", "ones-project-api", ""),
+        ("app/controllers/user_guide.go", "bang-api-gomod", "app/controllers/user_guide.go"),
+        ("app/core/scope/inside/domain/layout.go", "ones-project-api", "app/task/core/scope/inside/domain/layout.go"),
+        ("app/core/scope/scope.go", "ones-project-api", "app/task/core/scope/scope.go"),
+        ("app/core/task/add.go", "ones-project-api", "app/task/core/task/add.go"),
+        ("app/middlewares/guardian.go", "bang-api-gomod", "app/middlewares/guardian.go"),
+        ("app/models/team/team.go", "ones-api-biz-common", "foundation/team/team.go"),
+        ("app/models/testcase/case.go", "bang-api-gomod", "app/models/testcase/case.go"),
+        ("app/models/user/user.go", "ones-api-biz-common", "foundation/user/models/user/user.go"),
+        ("app/router/router.go", "bang-api-gomod", "app/router/router.go"),
+        ("app/services/app_platform/features/config_menus.go", "bang-api-gomod",
+         "app/services/app_platform/features/config_menus.go"),
+        ("app/services/app_platform/service.go", "bang-api-gomod", "app/services/app_platform/service.go"),
+        ("app/services/auth/create_org.go", "bang-api-gomod", "app/services/auth/create_org.go"),
+        ("app/services/cert/hub.go", "bang-api-gomod", "app/services/cert/hub.go"),
+        ("app/services/common/activity/activityimport/import_activity.go", "ones-project-api",
+         "app/ppm/services/common/activity/activityimport/import_activity.go"),
+        ("app/services/common/email/constant.go", "bang-api-gomod", "app/services/common/email/constant.go"),
+        ("app/services/common/email/email.go", "bang-api-gomod", "app/services/common/email/email.go"),
+        ("app/services/common/license_manager/license.go", "bang-api-gomod",
+         "app/services/common/license_manager/license.go"),
+        ("app/services/copilot/config.go", "ones-project-api", ""),
+        ("app/services/copilot/prompt_recommend.go", "ones-project-api",
+         "app/task/services/copilot/prompt_recommend.go"),
+        ("app/services/copilot/similar_recommend.go", "ones-project-api",
+         "app/task/services/copilot/similar_recommend.go"),
+        ("app/services/copilot/task_created_or_updated_event.go", "ones-project-api",
+         "app/task/services/copilot/task_created_or_updated_event.go"),
+        ("app/services/copilot/usage.go", "ones-project-api", ""),
+        ("app/services/copilot/utils.go", "ones-project-api", ""),
+        ("app/services/field/config.go", "ones-project-api", "app/task/services/field/config.go"),
+        ("app/services/item/delegates/schedule/total_manhour_resolver.go", "bang-api-gomod",
+         "app/services/item/delegates/schedule/total_manhour_resolver.go"),
+        ("app/services/item/delegates/task.go", "bang-api-gomod", "app/services/item/delegates/task.go"),
+        ("app/services/license/bff.go", "bang-api-gomod", "app/services/license/bff.go"),
+        ("app/services/license/com.go", "bang-api-gomod", "app/services/license/com.go"),
+        ("app/services/license/grant.go", "bang-api-gomod", "app/services/license/grant.go"),
+        ("app/services/license/license.go", "bang-api-gomod", "app/services/license/license.go"),
+        ("app/services/manhour/report/agg_type.go", "ones-project-api",
+         "app/project/services/manhour/report/agg_type.go"),
+        ("app/services/manhour/report/generator.go", "ones-project-api",
+         "app/project/services/manhour/report/generator.go"),
+        ("app/services/manhour/report/helper.go", "ones-project-api", "app/project/services/manhour/report/helper.go"),
+        ("app/services/manhour/report/manhour_log.go", "ones-project-api",
+         "app/project/services/manhour/report/manhour_log.go"),
+        ("app/services/manhour/report/manhour_overview.go", "ones-project-api",
+         "app/project/services/manhour/report/manhour_overview.go"),
+        ("app/services/manhour/report/types.go", "ones-project-api", "app/project/services/manhour/report/types.go"),
+        ("app/services/manhour/update_manhour_executor.go", "ones-project-api",
+         "app/external/services/manhour/update_manhour_executor.go"),
+        ("app/services/organization/business.go", "bang-api-gomod", "app/services/organization/business.go"),
+        ("app/services/organization/organization.go", "bang-api-gomod", "app/services/organization/organization.go"),
+        ("app/services/plugin-platform/cert_check.go", "bang-api-gomod", "app/services/plugin-platform/cert_check.go"),
+        ("app/services/sms/aliyun.go", "bang-api-gomod", "app/services/sms/aliyun.go"),
+        ("app/services/sms/aliyun_test.go", "bang-api-gomod", "app/services/sms/aliyun_test.go"),
+        ("app/services/sso.v2/common/utils/api.go", "ones-api-biz-common", "utils/http/api.go"),
+        ("app/services/task/move_task.go", "ones-project-api", "app/task/services/task/move_task.go"),
+        ("app/services/user/user.go", "bang-api-gomod", "app/services/user/user.go"),
+        ("app/services/userguide/user_guide.go", "bang-api-gomod", "app/services/userguide/user_guide.go"),
+        ("app/utils/constraint/const.go", "ones-api-biz-common", "utils/constraint/const.go"),
+        ("app/utils/errors/code.go", "ones-api-biz-common", "errors/utils/errors/code.go"),
+        ("app/utils/license/license.go", "ones-api-biz-common", "auth/license/utils/license/license.go"),
+        ("app/utils/license/limit.go", "ones-api-biz-common", "auth/license/utils/license/limit.go"),
+        ("app/utils/license/sales_suite.go", "bang-api-gomod", "app/utils/license/sales_suite.go"),
+        ("app/utils/string.go", "ones-api-biz-common", "utils/string/string.go"),
+        ("conf/constraint/cn-private/app_copilot_enterprise.yaml", "bang-api-gomod", ""),
+        ("conf/constraint/cn-private/app_open_platform_enterprise.yaml", "bang-api-gomod", ""),
+        ("conf/constraint/cn-private/app_plugin_Gvmbef2y_enterprise-trial.yaml", "bang-api-gomod", ""),
+        ("conf/constraint/cn-private/app_plugin_Gvmbef2y_enterprise.yaml", "bang-api-gomod", ""),
+        ("conf/constraint/cn-private/instance.yaml", "bang-api-gomod", "conf/constraint/cn-private/instance.yaml"),
+        ("conf/constraint/cn/app_open_platform_enterprise.yaml", "bang-api-gomod", ""),
+        ("conf/constraint/cn/app_plugin_Gvmbef2y_enterprise-trial.yaml", "bang-api-gomod", ""),
+        ("conf/constraint/cn/app_plugin_Gvmbef2y_enterprise.yaml", "bang-api-gomod", ""),
+        ("conf/constraint/cn/instance.yaml", "bang-api-gomod", "conf/constraint/cn/instance.yaml"),
+        ("conf/constraint/com-private/app_copilot_business-trial.yaml", "bang-api-gomod",
+         "conf/constraint/com-private/app_copilot_business-trial.yaml"),
+        ("conf/constraint/com-private/app_copilot_enterprise.yaml", "bang-api-gomod",
+         "conf/constraint/com-private/app_copilot_enterprise.yaml"),
+        ("conf/constraint/com-private/app_open_platform_enterprise.yaml", "bang-api-gomod",
+         "conf/constraint/com-private/app_open_platform_enterprise.yaml"),
+        ("conf/constraint/com-private/app_plugin_Gvmbef2y_business-trial.yaml", "bang-api-gomod",
+         "conf/constraint/com-private/app_plugin_Gvmbef2y_business-trial.yaml"),
+        ("conf/constraint/com-private/app_plugin_Gvmbef2y_enterprise.yaml", "bang-api-gomod",
+         "conf/constraint/com-private/app_plugin_Gvmbef2y_enterprise.yaml"),
+        ("conf/constraint/com-private/instance.yaml", "bang-api-gomod", "conf/constraint/com-private/instance.yaml"),
+        ("conf/constraint/com/app_copilot_business-trial.yaml", "bang-api-gomod",
+         "conf/constraint/com/app_copilot_business-trial.yaml"),
+        ("conf/constraint/com/app_copilot_enterprise.yaml", "bang-api-gomod",
+         "conf/constraint/com/app_copilot_enterprise.yaml"),
+        ("conf/constraint/com/app_open_platform_enterprise.yaml", "bang-api-gomod",
+         "conf/constraint/com/app_open_platform_enterprise.yaml"),
+        ("conf/constraint/com/app_plugin_Gvmbef2y_business-trial.yaml", "bang-api-gomod",
+         "conf/constraint/com/app_plugin_Gvmbef2y_business-trial.yaml"),
+        ("conf/constraint/com/app_plugin_Gvmbef2y_business.yaml", "bang-api-gomod",
+         "conf/constraint/com/app_plugin_Gvmbef2y_business.yaml"),
+        ("conf/constraint/com/app_plugin_Gvmbef2y_enterprise.yaml", "bang-api-gomod",
+         "conf/constraint/com/app_plugin_Gvmbef2y_enterprise.yaml"),
+        ("conf/constraint/com/instance.yaml", "bang-api-gomod", "conf/constraint/com/instance.yaml"),
+        ("conf/send_sms_template.go", "bang-api-gomod", "conf/send_sms_template.go"),
+        ("email_templates/copilot_embedding_result_html", "bang-api-gomod",
+         "email_templates/copilot_embedding_result_html"),
+        ("email_templates/mail.yaml", "bang-api-gomod", "email_templates/mail.yaml"),
+        ("go.mod", "bang-api-gomod", "go.mod"),
+        ("go.sum", "bang-api-gomod", "go.sum"),
+        ("locales/i18n.json", "bang-api-gomod", "locales/i18n.json"),
+        ("template/app_platform/apps/copilot.json", "bang-api-gomod", "template/app_platform/apps/copilot.json"),
+        ("template/app_platform/apps/open_platform.json", "bang-api-gomod",
+         "template/app_platform/apps/open_platform.json"),
+        ("template/cn/app_platform/config.json", "bang-api-gomod", "template/cn/app_platform/config.json"),
+        ("template/cn/marketplace/category.json", "bang-api-gomod", "template/cn/marketplace/category.json"),
+        ("template/cn/marketplace/goods/copilot.json", "bang-api-gomod", "template/cn/marketplace/goods/copilot.json"),
+        ("template/cn/policy/policy.json", "bang-api-gomod", "template/cn/policy/policy.json"),
+        ("template/com/app_platform/config.json", "bang-api-gomod", "template/com/app_platform/config.json"),
+        ("template/com/policy/policy.json", "bang-api-gomod", "template/com/policy/policy.json"),
     ]
 
     # docs/project_swagger.yaml
@@ -163,28 +281,30 @@ if __name__ == '__main__':
     # template/component/sprint/v2.json
     # template/pandoc/custom-reference.docx
 
-    new_project_path = '/Users/xhs/go/src/github.com/bangwork/bang-api-gomod'
-    old_project_path = '/Users/xhs/go/src/github.com/bangwork/bang-api'
+    bangwork_dir = '/Users/xhs/go/src/github.com/bangwork'
+    old_project_path = '/Users/xhs/go/src/github.com/bangwork/bang-api-docker'
     have_not_deal_files = []
     for ft in files_path_map:
         f = ft[0]
-        # 不是 go 文件，跳过
-        if not f.endswith('.go'):
-            have_not_deal_files.append(f)
+        # 如果不是 yaml 文件，跳过
+        if not f.endswith('.yaml'):
+            continue
+        if not ft[2] == "":
             continue
         # 拼上新项目目录，看文件是否存在
-        new_file = os.path.join(new_project_path, ft[1])
-        if os.path.exists(new_file):
-            # 文件存在，从旧项目目录拷贝到新项目目录
-            old_file = os.path.join(old_project_path, f)
-            # cp
-            cp_cmd = f'cp {old_file} {new_file}'
-            # 执行
-            # move_result = subprocess.run(move_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            res = subprocess.run(cp_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            if res.returncode != 0:
-                print(f'Error: {res.stderr.decode("utf-8")}')
-        else:
-            have_not_deal_files.append(f)
-    for f in have_not_deal_files:
-        print(f)
+        # new_file = os.path.join(bangwork_dir, ft[1], ft[2])
+        new_file = os.path.join(bangwork_dir, ft[1], ft[0])
+        new_dir = os.path.dirname(new_file)
+        if not os.path.exists(new_file):
+            print(ft)
+        if not os.path.exists(new_dir):
+            os.makedirs(new_dir)
+        # 文件存在，从旧项目目录拷贝到新项目目录
+        old_file = os.path.join(old_project_path, f)
+        # cp
+        cp_cmd = f'cp {old_file} {new_file}'
+        # 执行
+        # move_result = subprocess.run(move_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        res = subprocess.run(cp_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if res.returncode != 0:
+            print(f'Error: {res.stderr.decode("utf-8")}')
