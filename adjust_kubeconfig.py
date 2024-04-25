@@ -180,6 +180,9 @@ def get_env_configs(directory, need_split=True):
 
 kubeconfig_dir = "/Users/xhs/kubeconfig/"
 
+# 目前我是用了自己的服务器存储 kubeconfig 文件
+# 如果IP变了，需要在 jumpserver 同步
+# scp -o StrictHostKeyChecking=no ~/.kube/config root@114.215.111.84:/root/kubeconfig/$(curl -s ip.me)_p1103-k3s-2
 if __name__ == "__main__":
     remote_host = "root@114.215.111.84"
     remote_path = "/root/kubeconfig"
