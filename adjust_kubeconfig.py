@@ -134,7 +134,7 @@ def get_available_envs(config_dir):
     return available_envs
 
 
-def parse_command_line_args():
+def parse_command_line_args(kubeconfig_dir):
     parser = argparse.ArgumentParser(description="Adjust kubeconfig file")
     parser.add_argument("env_name", nargs="?", type=str, help="env_name")
     parser.add_argument("--ip", type=str, required=False, help="IP address")
@@ -178,17 +178,25 @@ def get_env_configs(directory, need_split=True):
     return env_configs
 
 
-kubeconfig_dir = "/Users/xhs/kubeconfig/"
-
 # 目前我是用了自己的服务器存储 kubeconfig 文件
 # 如果IP变了，需要在 jumpserver 同步
-# scp -o StrictHostKeyChecking=no ~/.kube/config root@114.215.111.84:/root/kubeconfig/$(curl -s ip.me)_p1103-k3s-2
+# scp -o StrictHostKeyChecking=no ~/.kube/config root@your_ip:/root/kubeconfig/$(curl -s ip.me)_p1103-k3s-2
 if __name__ == "__main__":
-    remote_host = "root@114.215.111.84"
-    remote_path = "/root/kubeconfig"
-    local_path = "/Users/xhs/kubeconfig_remote/"
-    copy_remote_kubeconfig(remote_host, remote_path, local_path)
-    remote_env_configs = get_env_configs(os.path.join(local_path, os.path.basename(remote_path)))
+    kubeconfig_dir = os.getenv("KUBECONFIG_DIR")
+    sync_kubeconfig_host = os.getenv("SYNC_KUBECONFIG_HOST")
+    remote_kubeconfig_path = os.getenv("REMOTE_KUBECONFIG_PATH")
+    local_kubeconfig_path = os.getenv("LOCAL_KUBECONFIG_PATH")
+    # 如果读不到，退出
+    if not kubeconfig_dir or not sync_kubeconfig_host or not remote_kubeconfig_path or not local_kubeconfig_path:
+        print('''Please set KUBECONFIG_DIR, SYNC_KUBECONFIG_HOST, REMOTE_KUBECONFIG_PATH and LOCAL_KUBECONFIG_PATH
+export KUBECONFIG_DIR=/Users/xhs/kubeconfig/
+export SYNC_KUBECONFIG_HOST=root@your_ip
+export REMOTE_KUBECONFIG_PATH=/root/kubeconfig
+export LOCAL_KUBECONFIG_PATH=/Users/xhs/kubeconfig_remote/
+        ''')
+        exit(1)
+    copy_remote_kubeconfig(sync_kubeconfig_host, remote_kubeconfig_path, local_kubeconfig_path)
+    remote_env_configs = get_env_configs(os.path.join(local_kubeconfig_path, os.path.basename(remote_kubeconfig_path)))
     local_env_configs = get_env_configs(kubeconfig_dir, need_split=False)
     for env_name, config_info in remote_env_configs.items():
         # 取出本地的
@@ -202,7 +210,7 @@ if __name__ == "__main__":
             print(f"{env_name} updated")
         else:
             print(f"{env_name} is up to date, skip updating")
-    args = parse_command_line_args()
+    args = parse_command_line_args(kubeconfig_dir)
 
     config_path = f"/Users/xhs/kubeconfig/{args.env_name}.yaml"
     adjust_kubeconfig(config_path, config_path, args.ip)
