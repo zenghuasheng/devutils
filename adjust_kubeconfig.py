@@ -16,10 +16,11 @@ def adjust_kubeconfig(config_file, target_path, new_ip):
     # 调整 certificate-authority-data 部分为 insecure-skip-tls-verify: true
     for cluster in kubeconfig['clusters']:
         cluster['cluster']['insecure-skip-tls-verify'] = True
-        del cluster['cluster']['certificate-authority-data']
+        if 'certificate-authority-data' in cluster['cluster']:
+            del cluster['cluster']['certificate-authority-data']
 
         # 替换 server 中的 IP
-        cluster['cluster']['server'] = cluster['cluster']['server'].replace('127.0.0.1', new_ip)
+        cluster['cluster']['server'] = f"https://{new_ip}:6443"
 
     # 写入新的 YAML 文件
     with open(target_path, 'w') as f:
@@ -217,4 +218,8 @@ export LOCAL_KUBECONFIG_PATH=/Users/xhs/kubeconfig_remote/
     copy_config(config_path)
     verify_kubeconfig(args.ip)
     replace_esn_shell()
+    after_adjust_hook = os.getenv("AFTER_ADJUST_HOOK")
+    if after_adjust_hook:
+        print(f"Running after adjust hook: {after_adjust_hook}")
+        os.system(after_adjust_hook)
     print("环境已准备好，请到项目下执行 okteto up --log-level=debug")
