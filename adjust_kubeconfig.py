@@ -1,6 +1,7 @@
 import argparse
 import subprocess
 
+import requests
 import yaml
 import os
 
@@ -179,6 +180,25 @@ def get_env_configs(directory, need_split=True):
     return env_configs
 
 
+def get_server_public_ip(url):
+    try:
+        # 发送 HTTP GET 请求
+        response = requests.get(url)
+
+        # 检查是否成功获取响应
+        if response.status_code == 200:
+            # 获取响应头中的 X-Server-Public-Ip
+            server_public_ip = response.headers.get('X-Server-Public-Ip')
+            if server_public_ip:
+                return server_public_ip
+            else:
+                print("X-Server-Public-Ip not found in response headers.")
+        else:
+            print(f"Failed to get response from {url}. Status code: {response.status_code}")
+    except Exception as e:
+        print(f"Error occurred: {e}")
+
+
 # 目前我是用了自己的服务器存储 kubeconfig 文件
 # 如果IP变了，需要在 jumpserver 同步
 # scp -o StrictHostKeyChecking=no ~/.kube/config root@your_ip:/root/kubeconfig/$(curl -s ip.me)_p1103-k3s-2
@@ -214,9 +234,14 @@ export LOCAL_KUBECONFIG_PATH=/Users/xhs/kubeconfig_remote/
     args = parse_command_line_args(kubeconfig_dir)
 
     config_path = f"/Users/xhs/kubeconfig/{args.env_name}.yaml"
-    adjust_kubeconfig(config_path, config_path, args.ip)
+    new_ip = None
+    if args.ip:
+        new_ip = args.ip
+    else:
+        server_public_ip = get_server_public_ip(f"https://{args.env_name}.k3s-dev.myones.net")
+    adjust_kubeconfig(config_path, config_path, new_ip)
     copy_config(config_path)
-    verify_kubeconfig(args.ip)
+    verify_kubeconfig(new_ip)
     replace_esn_shell()
     after_adjust_hook = os.getenv("AFTER_ADJUST_HOOK")
     if after_adjust_hook:
