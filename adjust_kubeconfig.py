@@ -140,6 +140,7 @@ def parse_command_line_args(kubeconfig_dir):
     parser = argparse.ArgumentParser(description="Adjust kubeconfig file")
     parser.add_argument("env_name", nargs="?", type=str, help="env_name")
     parser.add_argument("--ip", type=str, required=False, help="IP address")
+    parser.add_argument("--only-connect", action="store_true", help="Only connect to the environment")
     # 从远程获取
     parser.add_argument("--remote", action="store_true", help="Get IP address from remote")
     args = parser.parse_args()
@@ -242,9 +243,10 @@ export LOCAL_KUBECONFIG_PATH=/Users/xhs/kubeconfig_remote/
     adjust_kubeconfig(config_path, config_path, new_ip)
     copy_config(config_path)
     verify_kubeconfig(new_ip)
-    replace_esn_shell()
-    after_adjust_hook = os.getenv("AFTER_ADJUST_HOOK")
-    if after_adjust_hook:
-        print(f"Running after adjust hook: {after_adjust_hook}")
-        os.system(after_adjust_hook)
+    if not args.only_connect:
+        replace_esn_shell()
+        after_adjust_hook = os.getenv("AFTER_ADJUST_HOOK")
+        if after_adjust_hook:
+            print(f"Running after adjust hook: {after_adjust_hook}")
+            os.system(after_adjust_hook)
     print("环境已准备好，请到项目下执行 okteto up --log-level=debug")
