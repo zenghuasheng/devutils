@@ -100,7 +100,7 @@ def modify_api_common_config(file_path):
         }
 
         loop_check_service_health $@
-    """
+"""
 
     # 写回原文件
     with open(file_path, 'w') as f:
@@ -191,6 +191,7 @@ def get_server_public_ip(url):
             # 获取响应头中的 X-Server-Public-Ip
             server_public_ip = response.headers.get('X-Server-Public-Ip')
             if server_public_ip:
+                print(f"Server public IP: {server_public_ip}")
                 return server_public_ip
             else:
                 print("X-Server-Public-Ip not found in response headers.")
@@ -239,7 +240,7 @@ export LOCAL_KUBECONFIG_PATH=/Users/xhs/kubeconfig_remote/
     if args.ip:
         new_ip = args.ip
     else:
-        server_public_ip = get_server_public_ip(f"https://{args.env_name}.k3s-dev.myones.net")
+        new_ip = get_server_public_ip(f"https://{args.env_name}.k3s-dev.myones.net")
     adjust_kubeconfig(config_path, config_path, new_ip)
     copy_config(config_path)
     verify_kubeconfig(new_ip)
