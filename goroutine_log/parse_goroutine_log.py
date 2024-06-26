@@ -5,7 +5,7 @@ from collections import defaultdict
 from flask import Flask, request, jsonify
 from whoosh import index
 from whoosh.fields import Schema, TEXT, ID
-from whoosh.qparser import QueryParser
+from whoosh.qparser import QueryParser, AndGroup
 
 tenant = 'saas/'
 # tenant = 'lanwang/'
@@ -96,17 +96,25 @@ app = Flask(__name__)
 # 路由：全文搜索
 @app.route('/search', methods=['GET'])
 def search_logs():
-    query_str = request.args.get('q', '')
+    # 收集所有搜索词参数
+    query_params = [request.args.get(f'q{i}', '') for i in range(10) if request.args.get(f'q{i}', '')]
+
+    # 如果没有提供任何搜索词，返回空结果
+    if not query_params:
+        return jsonify({"total_results": 0, "results": [], "tenant": tenant})
+
     size = request.args.get('size', 10)
-    # 转为整数
-    size = int(size)
+    size = int(size)  # 转为整数
     results = []
     total_hits = 0
 
     with ix.searcher() as searcher:
-        query = QueryParser("content", ix.schema).parse(query_str)
-        search_results = searcher.search(query, limit=None)  # 获取所有匹配结果
+        # 构建组合查询
+        parser = QueryParser("content", ix.schema, group=AndGroup)
+        combined_query = " AND ".join(query_params)
+        query = parser.parse(combined_query)
 
+        search_results = searcher.search(query, limit=None)  # 获取所有匹配结果
         total_hits = len(search_results)  # 获取总匹配记录数
 
         # 获取前size条结果
@@ -115,7 +123,6 @@ def search_logs():
         # 从文件中读取匹配的内容
         for result in top_results:
             log_path = result["log_path"]
-            # 如果 log_path 以 tenant 开头，不用再加 tenant
             if log_path.startswith(tenant):
                 log_path = log_path
             else:
@@ -139,7 +146,6 @@ def search_logs():
     }
 
     return jsonify(response)
-
 
 # 路由：按 created_by 分组并返回各自的数量
 @app.route('/group_by_created_by', methods=['GET'])
@@ -166,10 +172,18 @@ def group_by_created_by():
                                     for k, v in
                                     sorted_created_by_count]
 
+    # 统计哪些包含 sarama 的，计算总数和占比
+    sarama_count = 0
+    for k, v in sorted_created_by_count:
+        if "sarama" in k:
+            sarama_count += v
+    sarama_percentage = "%.2f%%" % (sarama_count / total_progress * 100)
     res = {
         "total_progress": total_progress,
         "created_by_count": sorted_created_by_count_list,
-        "tenant": tenant
+        "tenant": tenant,
+        "sarama_count": sarama_count,
+        "sarama_percentage": sarama_percentage
     }
     return jsonify(res)
 
