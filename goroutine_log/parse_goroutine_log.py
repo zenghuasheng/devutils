@@ -7,8 +7,8 @@ from whoosh import index
 from whoosh.fields import Schema, TEXT, ID
 from whoosh.qparser import QueryParser
 
-# tenant = 'saas/'
-tenant = 'lanwang/'
+tenant = 'saas/'
+# tenant = 'lanwang/'
 
 # 全局变量
 log_dir = tenant + "logs"
@@ -93,17 +93,13 @@ def main(log_file_path):
 app = Flask(__name__)
 
 
-# 路由：展示所有 goroutine 日志
-@app.route('/logs', methods=['GET'])
-def get_logs():
-    logs = load_all_goroutine_logs()
-    return jsonify(logs)
-
-
 # 路由：全文搜索
 @app.route('/search', methods=['GET'])
 def search_logs():
     query_str = request.args.get('q', '')
+    size = request.args.get('size', 10)
+    # 转为整数
+    size = int(size)
     results = []
     total_hits = 0
 
@@ -113,24 +109,33 @@ def search_logs():
 
         total_hits = len(search_results)  # 获取总匹配记录数
 
-        # 获取前10条结果
-        top_results = search_results[:10]
+        # 获取前size条结果
+        top_results = search_results[:size]
 
         # 从文件中读取匹配的内容
         for result in top_results:
             log_path = result["log_path"]
+            # 如果 log_path 以 tenant 开头，不用再加 tenant
+            if log_path.startswith(tenant):
+                log_path = log_path
+            else:
+                log_path = tenant + log_path
             with open(log_path, 'r') as log_file:
                 content = log_file.read()
+            # 转换 content，按行分割为数组，\t 换成4个空格
+            content_lines = content.split('\n')
+            content_lines = [line.replace('\t', '    ') for line in content_lines]
             results.append({
                 "goroutine_id": result["goroutine_id"],
                 "created_by": result["created_by"],
                 "log_path": result["log_path"],
-                "content": content
+                "content": content_lines
             })
 
     response = {
         "total_results": total_hits,
-        "results": results
+        "results": results,
+        "tenant": tenant
     }
 
     return jsonify(response)
@@ -144,6 +149,7 @@ def group_by_created_by():
 
     with ix.searcher() as searcher:
         # 获取所有文档
+        total_progress = searcher.doc_count_all()
         results = searcher.documents()
         for result in results:
             created_by = result.get("created_by", "Unknown")
@@ -153,9 +159,19 @@ def group_by_created_by():
     sorted_created_by_count = sorted(created_by_count.items(), key=lambda item: item[1], reverse=True)
 
     # 转换为数组并返回
-    sorted_created_by_count_list = [{"created_by": k, "count": v} for k, v in sorted_created_by_count]
+    # 计算百分比, v / total_progress 格式化为 %.2f
+    # sorted_created_by_count_list = [{"created_by": k, "count": v, "percentage": v / total_progress} for k, v in
+    #                                 sorted_created_by_count]
+    sorted_created_by_count_list = [{"created_by": k, "count": v, "percentage": "%.2f%%" % (v / total_progress * 100)}
+                                    for k, v in
+                                    sorted_created_by_count]
 
-    return jsonify(sorted_created_by_count_list)
+    res = {
+        "total_progress": total_progress,
+        "created_by_count": sorted_created_by_count_list,
+        "tenant": tenant
+    }
+    return jsonify(res)
 
 
 # 运行 Flask 应用
