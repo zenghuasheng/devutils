@@ -56,6 +56,7 @@ if __name__ == "__main__":
     # Specify the file path
     file_to_backups = [
         "/Users/xhs/go/src/github.com/bangwork/bang-api-gomod/tmp/tmp.txt",
+        "/Users/xhs/go_workspace/daily-record/tmp.txt",
         # "/Users/xhs/go/src/github.com/bangwork/bang-api-gomod/tmp/tmp.sql",
     ]
 

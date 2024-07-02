@@ -1,3 +1,4 @@
+import hashlib
 import os
 import re
 from collections import defaultdict
@@ -7,8 +8,9 @@ from whoosh import index
 from whoosh.fields import Schema, TEXT, ID
 from whoosh.qparser import QueryParser, AndGroup
 
-tenant = 'saas/'
+# tenant = 'saas/'
 # tenant = 'lanwang/'
+tenant = 'saas_normal/'
 
 # 全局变量
 log_dir = tenant + "logs"
@@ -29,34 +31,55 @@ else:
 
 
 # 函数：分割堆栈日志
+# def split_goroutine_logs(file_path):
+#     pattern = re.compile(r'^goroutine \d+ \[.*\]:$')
+#     current_log = []
+#     goroutine_logs = []
+#
+#     with open(file_path, 'r') as file:
+#         for line in file:
+#             if pattern.match(line):
+#                 if current_log:
+#                     goroutine_logs.append(''.join(current_log).strip())
+#                     current_log = []
+#             current_log.append(line)
+#
+#         if current_log:
+#             goroutine_logs.append(''.join(current_log).strip())
+#
+#     # 去掉第一个 goroutine 日志，因为它是 panic 信息
+#     goroutine_logs = goroutine_logs[1:]
+#     return goroutine_logs
+
 def split_goroutine_logs(file_path):
-    pattern = re.compile(r'^goroutine \d+ \[.*\]:$')
-    current_log = []
     goroutine_logs = []
-
     with open(file_path, 'r') as file:
-        for line in file:
-            if pattern.match(line):
-                if current_log:
-                    goroutine_logs.append(''.join(current_log).strip())
-                    current_log = []
-            current_log.append(line)
+        content = file.read()
+        # 将日志按空行分割
+        raw_logs = content.split('\n\n')
 
-        if current_log:
-            goroutine_logs.append(''.join(current_log).strip())
+        for log in raw_logs:
+            if log.strip():  # 过滤掉空白日志
+                goroutine_logs.append(log)
 
-    # 去掉第一个 goroutine 日志，因为它是 panic 信息
-    goroutine_logs = goroutine_logs[1:]
     return goroutine_logs
 
 
 # 函数：解析 goroutine ID 和 created by 属性
+# def parse_goroutine_log(log):
+#     goroutine_id_match = re.match(r'^goroutine (\d+)', log)
+#     created_by_match = re.search(r'created by (.*) in goroutine (\d+)', log)
+#     goroutine_id = goroutine_id_match.group(1) if goroutine_id_match else None
+#     created_by = created_by_match.group(1) if created_by_match else None
+#     return goroutine_id, created_by
 def parse_goroutine_log(log):
-    goroutine_id_match = re.match(r'^goroutine (\d+)', log)
-    created_by_match = re.search(r'created by (.*) in goroutine (\d+)', log)
-    goroutine_id = goroutine_id_match.group(1) if goroutine_id_match else None
-    created_by = created_by_match.group(1) if created_by_match else None
-    return goroutine_id, created_by
+    # 计算 goroutine_id 为日志内容的 MD5 哈希值
+    log_md5 = hashlib.md5(log.encode('utf-8')).hexdigest()
+
+    # 解析 created_by 信息，这里假设日志中没有 created_by 信息
+    created_by = ""
+
+    return log_md5, created_by
 
 
 # 函数：存储堆栈日志为文件并索引
@@ -192,6 +215,7 @@ def group_by_created_by():
 if __name__ == "__main__":
     # log_file_path = '/Users/xhs/task/panic问题/SaaS的project-api.log'  # 替换为实际日志文件路径
     # log_file_path = '/Users/xhs/task/panic问题/蓝网的project-api.log'
+    # log_file_path = '/Users/xhs/task/panic问题/saas正常的协程堆栈_part.log'
     # main(log_file_path)
     app.run(host='0.0.0.0', port=5050)
     print('Flask app running')

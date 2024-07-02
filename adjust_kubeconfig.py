@@ -184,19 +184,15 @@ def get_env_configs(directory, need_split=True):
 def get_server_public_ip(url):
     try:
         # 发送 HTTP GET 请求
+        # 好像没用呀，因为 504 的时候不返回 IP
         response = requests.get(url)
 
-        # 检查是否成功获取响应
-        if response.status_code == 200:
-            # 获取响应头中的 X-Server-Public-Ip
-            server_public_ip = response.headers.get('X-Server-Public-Ip')
-            if server_public_ip:
-                print(f"Server public IP: {server_public_ip}")
-                return server_public_ip
-            else:
-                print("X-Server-Public-Ip not found in response headers.")
+        server_public_ip = response.headers.get('X-Server-Public-Ip')
+        if server_public_ip:
+            print(f"Server public IP: {server_public_ip}")
+            return server_public_ip
         else:
-            print(f"Failed to get response from {url}. Status code: {response.status_code}")
+            print("X-Server-Public-Ip not found in response headers.")
     except Exception as e:
         print(f"Error occurred: {e}")
 
@@ -239,8 +235,8 @@ export LOCAL_KUBECONFIG_PATH=/Users/xhs/kubeconfig_remote/
     new_ip = None
     if args.ip:
         new_ip = args.ip
-    else:
-        new_ip = get_server_public_ip(f"https://{args.env_name}.k3s-dev.myones.net")
+    # else:
+    #     new_ip = get_server_public_ip(f"https://{args.env_name}.k3s-dev.myones.net")
     adjust_kubeconfig(config_path, config_path, new_ip)
     copy_config(config_path)
     verify_kubeconfig(new_ip)

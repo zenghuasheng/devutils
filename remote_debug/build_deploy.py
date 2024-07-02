@@ -92,6 +92,7 @@ if __name__ == '__main__':
             "bang-api-gomod": "project-api",
             "bang-api-docker": "project-api",
             "bang-api": "project-api",
+            "kilob-sync": "kilob-sync"
         }
         if service_name in service_path_name_map:
             service_name = service_path_name_map[service_name]

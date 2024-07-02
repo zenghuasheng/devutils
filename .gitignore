@@ -7,3 +7,10 @@ qdrant_storage
 *.log
 .DS_Store
 *.png
+indexdir
+logs
+/cron.sh
+/remote_debug/debug_tool/dlv
+/remote_debug/debug_tool/dlv_linux
+/remote_debug/debug_tool/mkdebugc
+/api-common-config.yaml
