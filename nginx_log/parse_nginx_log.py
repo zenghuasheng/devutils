@@ -124,6 +124,10 @@ def upload_log():
     final_log_path = os.path.join(log_subdir, md5_hash)
     os.rename(temp_file.name, final_log_path)
 
+    # 保存文件名
+    with open(os.path.join(log_subdir, "filename.txt"), "w") as f:
+        f.write(str(logfile.filename))
+
     parsed_lines, error_string = parse_log_file(final_log_path, log_pattern, schema_fields, limit=10)
     parsed_first_100 = parsed_lines[:10]
 
@@ -265,6 +269,27 @@ def list_logs():
         "total_count": total_count,
         "schema_fields": list(schema_fields.keys())
     })
+
+
+@app.route('/api/parsed-log-list', methods=['GET'])
+def parsed_log_list():
+    log_list = []
+
+    # Iterate through subdirectories in log_dir
+    for hash_dir in os.listdir(log_dir):
+        log_subdir = os.path.join(log_dir, hash_dir)
+        if os.path.isdir(log_subdir):
+            filename_path = os.path.join(log_subdir, "filename.txt")
+            filename = ""
+            if os.path.exists(filename_path):
+                with open(filename_path, 'r') as f:
+                    filename = f.read().strip()
+            log_list.append({
+                "hash": hash_dir,
+                "filename": filename
+            })
+
+    return jsonify(log_list)
 
 
 if __name__ == '__main__':
