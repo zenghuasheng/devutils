@@ -43,8 +43,12 @@ def project_api_format_fields(match, schema_fields):
             # parsed_lines.append({field: int(field_value)})
             # 尝试转为 int,如果失败，转为 float
             if field == "response_time":
-                # 带有单位，比如 1.23ms 1.23s 1min2s
-                if "ms" in field_value:
+                # 带有单位，比如 1.23µs 1.23ms 1.23s 1min2s
+                if "µs" in field_value:
+                    field_value = field_value.replace("µs", "")
+                    field_value = float(field_value)
+                    field_value = int(field_value)
+                elif "ms" in field_value:
                     field_value = field_value.replace("ms", "")
                     field_value = float(field_value)
                     field_value = int(field_value)
