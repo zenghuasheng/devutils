@@ -36,7 +36,7 @@ def create_schema(fields):
 
 
 # Function to parse the log file based on the provided regex pattern
-def parse_log_file(file_path, log_pattern, schema_fields):
+def parse_log_file(file_path, log_pattern, schema_fields, limit=0):
     # '^(S+) - - \\[(.*?)\\] "(.*?)" (\\d+) (\\d+) "(.*?)" "(.*?)" "(.*?)" "([\\d\\.]+)"$'
     compiled_pattern = re.compile(log_pattern)
     # print(compiled_pattern)
@@ -47,7 +47,7 @@ def parse_log_file(file_path, log_pattern, schema_fields):
         i = 0
         for line in log_file:
             i += 1
-            if i > 10:
+            if 0 < limit < i:
                 break
             match = compiled_pattern.match(line.strip())
             if match:
@@ -81,10 +81,13 @@ def parse_log_file(file_path, log_pattern, schema_fields):
 # Function to calculate MD5 of a file
 def calculate_md5(file_path):
     hash_md5 = hashlib.md5()
-    with open(file_path, "rb") as f:
-        for chunk in iter(lambda: f.read(4096), b""):
-            hash_md5.update(chunk)
-            break
+    # Get first 100 lines and last 100 lines
+    with open(file_path, 'r', encoding='utf-8') as f:
+        lines = f.readlines()
+        first_100_lines = lines[:100]
+        last_100_lines = lines[-100:]
+        for line in first_100_lines + last_100_lines:
+            hash_md5.update(line.encode('utf-8'))
     return hash_md5.hexdigest()
 
 
@@ -121,7 +124,7 @@ def upload_log():
     final_log_path = os.path.join(log_subdir, md5_hash)
     os.rename(temp_file.name, final_log_path)
 
-    parsed_lines, error_string = parse_log_file(final_log_path, log_pattern, schema_fields)
+    parsed_lines, error_string = parse_log_file(final_log_path, log_pattern, schema_fields, limit=10)
     parsed_first_100 = parsed_lines[:10]
 
     return jsonify({
