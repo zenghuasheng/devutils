@@ -43,9 +43,11 @@ def parse_log_file(file_path, log_pattern, schema_fields, limit=0):
     compiled_pattern2 = re.compile(r'^(\S+) - - \[(.*?)\] "(.*?)" (\d+) (\d+) "(.*?)" "(.*?)" "(.*?)" "([\d\.]+)"$')
     # print(compiled_pattern2)
     parsed_lines = []
+    lines = []
     with open(file_path, 'r', encoding='utf-8') as log_file:
         i = 0
         for line in log_file:
+            lines.append(line)
             i += 1
             if 0 < limit < i:
                 break
@@ -75,6 +77,8 @@ def parse_log_file(file_path, log_pattern, schema_fields, limit=0):
                     else:
                         line_map[field] = field_value
                 parsed_lines.append(line_map)
+    if len(parsed_lines) == 0:
+        return [], "parse error, please check the log pattern.\n" + "\n".join(lines)
     return parsed_lines, ""
 
 
