@@ -27,11 +27,11 @@ def create_schema(fields):
     schema_fields = {}
     for field, field_type in fields.items():
         if field_type == "TEXT":
-            schema_fields[field] = TEXT(stored=True)
+            schema_fields[field] = TEXT(stored=True, sortable=True)
         elif field_type == "ID":
-            schema_fields[field] = ID(stored=True)
+            schema_fields[field] = ID(stored=True, sortable=True)
         elif field_type == "NUMERIC":
-            schema_fields[field] = NUMERIC(stored=True)
+            schema_fields[field] = NUMERIC(stored=True, sortable=True)
     return Schema(**schema_fields)
 
 
@@ -67,8 +67,10 @@ def parse_log_file(file_path, log_pattern, schema_fields):
                         # 尝试转为 int,如果失败，转为 float
                         try:
                             field_value = int(field_value)
+                            line_map[field] = field_value
                         except ValueError:
                             field_value = float(field_value)
+                            field_value = int(field_value * 1000)
                             line_map[field] = field_value
                     else:
                         line_map[field] = field_value
@@ -100,7 +102,6 @@ def upload_log():
 
     # Convert fields from string to dictionary
     schema_fields = {field.split(":")[0]: field.split(":")[1] for field in fields.split(",")}
-    schema = create_schema(schema_fields)
 
     # Create a temporary file to store the uploaded log
     temp_file = tempfile.NamedTemporaryFile(delete=False, dir=log_dir)
@@ -234,18 +235,24 @@ def list_logs():
     searchable_fields = [name for name, field_type in schema_fields.items() if field_type in {"TEXT", "ID"}]
 
     ix = index.open_dir(index_subdir)
-    parser = MultifieldParser(searchable_fields, schema=ix.schema)
-    query = parser.parse(query_str)
 
     results = []
     with ix.searcher() as searcher:
+        if query_str:
+            parser = MultifieldParser(searchable_fields, schema=ix.schema)
+            query = parser.parse(query_str)
+        else:
+            # Select a field from schema_fields to perform a match-all query
+            any_field = list(schema_fields.keys())[0]
+            query = QueryParser(any_field, ix.schema).parse("*")
+
         if sort_field:
             facet = FieldFacet(sort_field, reverse=is_reverse)
             search_results = searcher.search(query, sortedby=facet, limit=limit)
         else:
             search_results = searcher.search(query, limit=limit)
 
-        total_count = search_results.scored_length()
+        total_count = search_results.scored_length() if query_str else searcher.doc_count()
 
         for result in search_results:
             results.append(dict(result))
