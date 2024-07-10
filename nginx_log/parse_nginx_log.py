@@ -37,11 +37,7 @@ def create_schema(fields):
 
 # Function to parse the log file based on the provided regex pattern
 def parse_log_file(file_path, log_pattern, schema_fields, limit=0):
-    # '^(S+) - - \\[(.*?)\\] "(.*?)" (\\d+) (\\d+) "(.*?)" "(.*?)" "(.*?)" "([\\d\\.]+)"$'
     compiled_pattern = re.compile(log_pattern)
-    # print(compiled_pattern)
-    compiled_pattern2 = re.compile(r'^(\S+) - - \[(.*?)\] "(.*?)" (\d+) (\d+) "(.*?)" "(.*?)" "(.*?)" "([\d\.]+)"$')
-    # print(compiled_pattern2)
     parsed_lines = []
     lines = []
     with open(file_path, 'r', encoding='utf-8') as log_file:
@@ -61,25 +57,30 @@ def parse_log_file(file_path, log_pattern, schema_fields, limit=0):
                     for i, g in enumerate(groups):
                         error_string += f"\nGroup {i}: {g}"
                     return [], error_string
-                line_map = {}
-                for i, field in enumerate(schema_fields):
-                    field_value = match.group(i + 1)
-                    if schema_fields[field] == "NUMERIC":
-                        # parsed_lines.append({field: int(field_value)})
-                        # 尝试转为 int,如果失败，转为 float
-                        try:
-                            field_value = int(field_value)
-                            line_map[field] = field_value
-                        except ValueError:
-                            field_value = float(field_value)
-                            field_value = int(field_value * 1000)
-                            line_map[field] = field_value
-                    else:
-                        line_map[field] = field_value
+                line_map = format_fields(match, schema_fields)
                 parsed_lines.append(line_map)
     if len(parsed_lines) == 0:
         return [], "parse error, please check the log pattern.\n" + "\n".join(lines)
     return parsed_lines, ""
+
+
+def format_fields(match, schema_fields):
+    line_map = {}
+    for i, field in enumerate(schema_fields):
+        field_value = match.group(i + 1)
+        if schema_fields[field] == "NUMERIC":
+            # parsed_lines.append({field: int(field_value)})
+            # 尝试转为 int,如果失败，转为 float
+            try:
+                field_value = int(field_value)
+                line_map[field] = field_value
+            except ValueError:
+                field_value = float(field_value)
+                field_value = int(field_value * 1000)
+                line_map[field] = field_value
+        else:
+            line_map[field] = field_value
+    return line_map
 
 
 # Function to calculate MD5 of a file
