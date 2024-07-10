@@ -35,8 +35,43 @@ def create_schema(fields):
     return Schema(**schema_fields)
 
 
+def project_api_format_fields(match, schema_fields):
+    line_map = {}
+    for i, field in enumerate(schema_fields):
+        field_value = match.group(i + 1)
+        if schema_fields[field] == "NUMERIC":
+            # parsed_lines.append({field: int(field_value)})
+            # 尝试转为 int,如果失败，转为 float
+            if field == "response_time":
+                # 带有单位，比如 1.23ms 1.23s 1min2s
+                if "ms" in field_value:
+                    field_value = field_value.replace("ms", "")
+                    field_value = float(field_value)
+                    field_value = int(field_value)
+                elif "s" in field_value:
+                    field_value = field_value.replace("s", "")
+                    field_value = float(field_value)
+                    field_value = int(field_value * 1000)
+                elif "min" in field_value:
+                    field_value = field_value.replace("min", "")
+                    field_value = field_value.split("s")
+                    field_value = int(field_value[0]) * 60 + int(field_value[1])
+                line_map[field] = field_value
+            else:
+                try:
+                    field_value = int(field_value)
+                    line_map[field] = field_value
+                except ValueError:
+                    field_value = float(field_value)
+                    field_value = int(field_value * 1000)
+                    line_map[field] = field_value
+        else:
+            line_map[field] = field_value
+    return line_map
+
+
 # Function to parse the log file based on the provided regex pattern
-def parse_log_file(file_path, log_pattern, schema_fields, limit=0):
+def parse_log_file(file_path, log_pattern, schema_fields, format_fields, limit=0):
     compiled_pattern = re.compile(log_pattern)
     parsed_lines = []
     lines = []
@@ -64,23 +99,6 @@ def parse_log_file(file_path, log_pattern, schema_fields, limit=0):
     return parsed_lines, ""
 
 
-def format_fields(match, schema_fields):
-    line_map = {}
-    for i, field in enumerate(schema_fields):
-        field_value = match.group(i + 1)
-        if schema_fields[field] == "NUMERIC":
-            # parsed_lines.append({field: int(field_value)})
-            # 尝试转为 int,如果失败，转为 float
-            try:
-                field_value = int(field_value)
-                line_map[field] = field_value
-            except ValueError:
-                field_value = float(field_value)
-                field_value = int(field_value * 1000)
-                line_map[field] = field_value
-        else:
-            line_map[field] = field_value
-    return line_map
 
 
 # Function to calculate MD5 of a file
@@ -104,9 +122,23 @@ def upload_log():
     logfile = request.files['logfile']
     log_pattern = request.form['log_pattern']
     fields = request.form.get('fields')
+    format_code = request.form.get('format_fields')
 
     if not fields:
         return jsonify({"error": "No fields provided"}), 400
+
+    if not format_code:
+        return jsonify({"error": "No format fields code provided"}), 400
+    # Safely execute the format function
+    try:
+        exec_globals = {}
+        exec_locals = {}
+        exec(format_code, exec_globals, exec_locals)
+        if 'format_fields' not in exec_locals:
+            return jsonify({"error": "format_fields function not found in provided code"}), 400
+        format_fields = exec_locals['format_fields']
+    except Exception as e:
+        return jsonify({"error": f"Failed to execute format function: {str(e)}"}), 400
 
     # Convert fields from string to dictionary
     schema_fields = {field.split(":")[0]: field.split(":")[1] for field in fields.split(",")}
@@ -133,7 +165,7 @@ def upload_log():
     with open(os.path.join(log_subdir, "filename.txt"), "w") as f:
         f.write(str(logfile.filename))
 
-    parsed_lines, error_string = parse_log_file(final_log_path, log_pattern, schema_fields, limit=10)
+    parsed_lines, error_string = parse_log_file(final_log_path, log_pattern, schema_fields, format_fields, limit=10)
     parsed_first_100 = parsed_lines[:10]
 
     return jsonify({
@@ -148,6 +180,23 @@ def confirm_parse():
     md5_hash = request.form['md5']
     log_pattern = request.form['log_pattern']
     fields = request.form['fields']
+    format_code = request.form.get('format_fields')
+
+    if not fields:
+        return jsonify({"error": "No fields provided"}), 400
+
+    if not format_code:
+        return jsonify({"error": "No format fields code provided"}), 400
+    # Safely execute the format function
+    try:
+        exec_globals = {}
+        exec_locals = {}
+        exec(format_code, exec_globals, exec_locals)
+        if 'format_fields' not in exec_locals:
+            return jsonify({"error": "format_fields function not found in provided code"}), 400
+        format_fields = exec_locals['format_fields']
+    except Exception as e:
+        return jsonify({"error": f"Failed to execute format function: {str(e)}"}), 400
 
     index_subdir = os.path.join(index_dir, md5_hash)
     # 如果 index 存在，直接返回
@@ -161,7 +210,7 @@ def confirm_parse():
     log_subdir = os.path.join(log_dir, md5_hash)
     final_log_path = os.path.join(log_subdir, md5_hash)
 
-    parsed_lines, error_string = parse_log_file(final_log_path, log_pattern, schema_fields)
+    parsed_lines, error_string = parse_log_file(final_log_path, log_pattern, schema_fields, format_fields)
 
     # Initialize or open the Whoosh index
     if not index.exists_in(index_subdir):
