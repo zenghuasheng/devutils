@@ -1,189 +1,182 @@
-from whoosh.fields import Schema, TEXT, ID, NUMERIC
+from flask import Flask, request, jsonify
 import os
 import re
 import hashlib
+from whoosh.fields import Schema, TEXT, ID, NUMERIC
 from whoosh import index
-from whoosh.qparser import QueryParser, AndGroup
-from flask import Flask, jsonify, request
+from whoosh.qparser import QueryParser, AndGroup, MultifieldParser
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
+import tempfile
 
-# Define the Whoosh schema
-schema = Schema(
-    ip_address=ID(stored=True),
-    timestamp=TEXT(stored=True),
-    method=TEXT(stored=True),
-    endpoint=TEXT(stored=True),
-    status=NUMERIC(stored=True),
-    size=NUMERIC(stored=True),
-    referer=TEXT(stored=True),
-    user_agent=TEXT(stored=True),
-    request_ip=ID(stored=True),
-    response_time=NUMERIC(stored=True),
-    log_path=ID(stored=True)
-)
-
-# Define paths and directories
-log_dir = "logs"
-index_dir = "indexdir"
-
-if not os.path.exists(log_dir):
-    os.makedirs(log_dir)
-if not os.path.exists(index_dir):
-    os.makedirs(index_dir)
-
-# Initialize or open the Whoosh index
-if not index.exists_in(index_dir):
-    ix = index.create_in(index_dir, schema)
-else:
-    ix = index.open_dir(index_dir)
-
-# Regex pattern for nginx log format
-log_pattern = re.compile(r'^(\S+) - - \[(.*?)\] "(.*?)" (\d+) (\d+) "(.*?)" "(.*?)" "(.*?)" "([\d\.]+)"$')
-
-
-# Function to parse a single nginx log line
-def parse_nginx_log_line(line):
-    match = log_pattern.match(line.strip())
-    if match:
-        ip_address = match.group(1)
-        timestamp = match.group(2)
-        method = match.group(3).split()[0]  # Extract HTTP method (GET, POST, etc.)
-        endpoint = match.group(3).split()[1]  # Extract request endpoint
-        status = int(match.group(4))
-        size = int(match.group(5))
-        referer = match.group(6)
-        user_agent = match.group(7)
-        request_ip = match.group(8)
-        response_time = float(match.group(9))
-        return ip_address, timestamp, method, endpoint, status, size, referer, user_agent, request_ip, response_time
-    return None
-
-
-# Function to store and index nginx log data
-def store_and_index_nginx_log(writer, ip_address, timestamp, method, endpoint, status, size, referer, user_agent,
-                              request_ip, response_time, log_path):
-    writer.add_document(
-        ip_address=ip_address,
-        timestamp=timestamp,
-        method=method,
-        endpoint=endpoint,
-        status=status,
-        size=size,
-        referer=referer,
-        user_agent=user_agent,
-        request_ip=request_ip,
-        response_time=response_time,
-        log_path=log_path
-    )
-
-
-# Function to read nginx logs, parse them, and index into Whoosh
-def index_nginx_logs(log_file_path):
-    with open(log_file_path, 'r', encoding='utf-8') as log_file:
-        for line in log_file:
-            log_data = parse_nginx_log_line(line.strip())
-            if log_data:
-                ip_address, timestamp, method, endpoint, status, size, referer, user_agent, request_ip, response_time = log_data
-                store_and_index_nginx_log(writer, ip_address, timestamp, method, endpoint, status, size, referer,
-                                          user_agent, request_ip, response_time, log_file_path)
-
+from whoosh.sorting import FieldFacet
 
 app = Flask(__name__)
 
+# Define the log directory and index directory
+log_dir = "logs"
+index_dir = "indexdir"
 
-# Route for searching logs
-@app.route('/search', methods=['GET'])
-def search_logs():
-    query_str = request.args.get('q', '')
-    size = int(request.args.get('size', 10))
-
-    results = []
-    total_hits = 0
-
-    with ix.searcher() as searcher:
-        query = QueryParser("endpoint", ix.schema, group=AndGroup).parse(query_str)
-        search_results = searcher.search(query, limit=None)
-        total_hits = len(search_results)
-
-        for result in search_results[:size]:
-            results.append({
-                "ip_address": result["ip_address"],
-                "timestamp": result["timestamp"],
-                "method": result["method"],
-                "endpoint": result["endpoint"],
-                "status": result["status"],
-                "size": result["size"],
-                "referer": result["referer"],
-                "user_agent": result["user_agent"],
-                "response_time": result["response_time"]
-            })
-
-    response = {
-        "total_results": total_hits,
-        "results": results
-    }
-
-    return jsonify(response)
+# Ensure the directories exist
+os.makedirs(log_dir, exist_ok=True)
+os.makedirs(index_dir, exist_ok=True)
 
 
-# Route for aggregating logs by timestamp range
-@app.route('/aggregate_by_timestamp', methods=['GET'])
-def aggregate_by_timestamp():
-    start_time_str = request.args.get('start_time', '')
-    end_time_str = request.args.get('end_time', '')
-
-    start_time = datetime.strptime(start_time_str, "%Y-%m-%d %H:%M:%S")
-    end_time = datetime.strptime(end_time_str, "%Y-%m-%d %H:%M:%S")
-
-    with ix.searcher() as searcher:
-        results = []
-        for doc in searcher.documents():
-            timestamp = datetime.strptime(doc['timestamp'], "%d/%b/%Y:%H:%M:%S %z")
-            if start_time <= timestamp <= end_time:
-                results.append({
-                    "ip_address": doc["ip_address"],
-                    "timestamp": doc["timestamp"],
-                    "method": doc["method"],
-                    "endpoint": doc["endpoint"],
-                    "status": doc["status"],
-                    "size": doc["size"],
-                    "referer": doc["referer"],
-                    "user_agent": doc["user_agent"],
-                    "response_time": doc["response_time"]
-                })
-
-        sorted_results = sorted(results, key=lambda x: x['response_time'])
-
-    return jsonify(sorted_results)
+# Function to create a dynamic schema based on the provided fields
+def create_schema(fields):
+    schema_fields = {}
+    for field, field_type in fields.items():
+        if field_type == "TEXT":
+            schema_fields[field] = TEXT(stored=True)
+        elif field_type == "ID":
+            schema_fields[field] = ID(stored=True)
+        elif field_type == "NUMERIC":
+            schema_fields[field] = NUMERIC(stored=True)
+    return Schema(**schema_fields)
 
 
-# Route for aggregating logs by request count
-@app.route('/aggregate_by_request_count', methods=['GET'])
-def aggregate_by_request_count():
-    with ix.searcher() as searcher:
-        results = []
-        query = QueryParser("endpoint", ix.schema, group=AndGroup).parse('*:*')
-        search_results = searcher.search(query, limit=None)
+# Function to parse the log file based on the provided regex pattern
+def parse_log_file(file_path, log_pattern, schema_fields):
+    # '^(S+) - - \\[(.*?)\\] "(.*?)" (\\d+) (\\d+) "(.*?)" "(.*?)" "(.*?)" "([\\d\\.]+)"$'
+    compiled_pattern = re.compile(log_pattern)
+    # print(compiled_pattern)
+    compiled_pattern2 = re.compile(r'^(\S+) - - \[(.*?)\] "(.*?)" (\d+) (\d+) "(.*?)" "(.*?)" "(.*?)" "([\d\.]+)"$')
+    # print(compiled_pattern2)
+    parsed_lines = []
+    with open(file_path, 'r', encoding='utf-8') as log_file:
+        i = 0
+        for line in log_file:
+            i += 1
+            if i > 10:
+                break
+            match = compiled_pattern.match(line.strip())
+            if match:
+                # parsed_lines.append({field: match.group(i + 1) for i, field in enumerate(schema_fields)})
+                groups = match.groups()
+                if len(groups) != len(schema_fields):
+                    # 遍历 groups, 把目前的解析结果返回
+                    error_string = f"Error parsing line: {line.strip()}"
+                    for i, g in enumerate(groups):
+                        error_string += f"\nGroup {i}: {g}"
+                    return [], error_string
+                line_map = {}
+                for i, field in enumerate(schema_fields):
+                    field_value = match.group(i + 1)
+                    if schema_fields[field] == "NUMERIC":
+                        # parsed_lines.append({field: int(field_value)})
+                        # 尝试转为 int,如果失败，转为 float
+                        try:
+                            field_value = int(field_value)
+                        except ValueError:
+                            field_value = float(field_value)
+                            line_map[field] = field_value
+                    else:
+                        line_map[field] = field_value
+                parsed_lines.append(line_map)
+    return parsed_lines, ""
 
-        count_dict = defaultdict(int)
-        for result in search_results:
-            count_dict[result['endpoint']] += 1
 
-        sorted_results = sorted(count_dict.items(), key=lambda x: x[1], reverse=True)
-
-        for result in sorted_results:
-            results.append({
-                "endpoint": result[0],
-                "request_count": result[1]
-            })
-
-    return jsonify(results)
+# Function to calculate MD5 of a file
+def calculate_md5(file_path):
+    hash_md5 = hashlib.md5()
+    with open(file_path, "rb") as f:
+        for chunk in iter(lambda: f.read(4096), b""):
+            hash_md5.update(chunk)
+            break
+    return hash_md5.hexdigest()
 
 
-# 写一个函数，按请求时长排序
-@app.route('/aggregate_by_response_time', methods=['GET'])
+@app.route('/api/upload', methods=['POST'])
+def upload_log():
+    if 'logfile' not in request.files or 'log_pattern' not in request.form:
+        return jsonify({"error": "No file or pattern provided"}), 400
+
+    logfile = request.files['logfile']
+    log_pattern = request.form['log_pattern']
+    fields = request.form.get('fields')
+
+    if not fields:
+        return jsonify({"error": "No fields provided"}), 400
+
+    # Convert fields from string to dictionary
+    schema_fields = {field.split(":")[0]: field.split(":")[1] for field in fields.split(",")}
+    schema = create_schema(schema_fields)
+
+    # Create a temporary file to store the uploaded log
+    temp_file = tempfile.NamedTemporaryFile(delete=False, dir=log_dir)
+    logfile.save(temp_file.name)
+
+    # Calculate MD5 hash
+    md5_hash = calculate_md5(temp_file.name)
+
+    # Create sub-directory based on MD5 hash
+    log_subdir = os.path.join(log_dir, md5_hash)
+    os.makedirs(log_subdir, exist_ok=True)
+    # index_dir
+    index_subdir = os.path.join(index_dir, md5_hash)
+    os.makedirs(index_subdir, exist_ok=True)
+
+    # Move the temporary file to the final location
+    final_log_path = os.path.join(log_subdir, md5_hash)
+    os.rename(temp_file.name, final_log_path)
+
+    parsed_lines, error_string = parse_log_file(final_log_path, log_pattern, schema_fields)
+    parsed_first_100 = parsed_lines[:10]
+
+    return jsonify({
+        "md5": md5_hash,
+        "first_100_parsed": parsed_first_100,
+        "error": error_string,
+    })
+
+
+@app.route('/api/confirm', methods=['POST'])
+def confirm_parse():
+    md5_hash = request.form['md5']
+    log_pattern = request.form['log_pattern']
+    fields = request.form['fields']
+
+    index_subdir = os.path.join(index_dir, md5_hash)
+    # 如果 index 存在，直接返回
+    if index.exists_in(index_subdir):
+        return jsonify({"status": "success"})
+
+    # Convert fields from string to dictionary
+    schema_fields = {field.split(":")[0]: field.split(":")[1] for field in fields.split(",")}
+    schema = create_schema(schema_fields)
+
+    log_subdir = os.path.join(log_dir, md5_hash)
+    final_log_path = os.path.join(log_subdir, md5_hash)
+
+    parsed_lines, error_string = parse_log_file(final_log_path, log_pattern, schema_fields)
+
+    # Initialize or open the Whoosh index
+    if not index.exists_in(index_subdir):
+        ix = index.create_in(index_subdir, schema)
+    else:
+        ix = index.open_dir(index_subdir)
+
+    # Store parsed logs into Whoosh index
+    with ix.writer() as writer:
+        for line in parsed_lines:
+            writer.add_document(**line)
+
+    # 保存 schema 到 log_subdir 目录，之后查询时需要用到
+    with open(os.path.join(log_subdir, "schema.txt"), "w") as f:
+        f.write(str(fields))
+
+    return jsonify({
+        "status": "success",
+        "total_lines_parsed": len(parsed_lines),
+        "error": error_string,
+    })
+
+
+@app.route('/api/aggregate_by_response_time', methods=['GET'])
 def aggregate_by_response_time():
+    md5_id = request.args.get('id', '')
+    index_subdir = os.path.join(index_dir, md5_id)
+    ix = index.open_dir(index_subdir)
     with ix.searcher() as searcher:
         results = []
         query = QueryParser("endpoint", ix.schema, group=AndGroup).parse('*:*')
@@ -197,20 +190,72 @@ def aggregate_by_response_time():
 
         for result in sorted_results:
             average_response_time = sum(result[1]) / len(result[1])
-            if average_response_time > 10:
-                results.append({
-                    "endpoint": result[0],
-                    "average_response_time": average_response_time
-                })
-
+            results.append({
+                "endpoint": result[0],
+                "average_response_time": average_response_time
+            })
+    # 排序
+    results = sorted(results, key=lambda x: x['average_response_time'], reverse=True)
     return jsonify(results)
 
 
-# Run Flask app
-if __name__ == '__main__':
-    # Example usage to index nginx logs
-    # log_file_path = '/Users/xhs/task/panic问题/云路/project-web.log'
-    # with ix.writer() as writer:
-    #     index_nginx_logs(log_file_path)
+@app.route('/api/list', methods=['GET'])
+def list_logs():
+    md5_hash = request.args.get('md5')
+    query_str = request.args.get('q', '')
+    sort_field = request.args.get('sort_field', '')
+    is_reverse = request.args.get('is_reverse', 'false').lower() == 'true'
+    limit = int(request.args.get('limit', 100))
 
-    app.run(host='0.0.0.0', port=5050)
+    if not md5_hash:
+        return jsonify({"error": "md5 parameter is required"}), 400
+
+    index_subdir = os.path.join(index_dir, md5_hash)
+    if not os.path.exists(index_subdir):
+        return jsonify({"error": "Invalid md5 parameter"}), 400
+
+    if not index.exists_in(index_subdir):
+        return jsonify({"error": "Index does not exist"}), 400
+
+    schema_file = os.path.join(log_dir, md5_hash, "schema.txt")
+    if not os.path.exists(schema_file):
+        return jsonify({"error": "Schema file does not exist"}), 400
+
+    # Read schema file
+    with open(schema_file, 'r') as f:
+        schema_content = f.read().strip()
+
+    # Parse schema fields
+    schema_fields = {}
+    for field in schema_content.split(','):
+        name, field_type = field.split(':')
+        schema_fields[name] = field_type
+
+    searchable_fields = [name for name, field_type in schema_fields.items() if field_type in {"TEXT", "ID"}]
+
+    ix = index.open_dir(index_subdir)
+    parser = MultifieldParser(searchable_fields, schema=ix.schema)
+    query = parser.parse(query_str)
+
+    results = []
+    with ix.searcher() as searcher:
+        if sort_field:
+            facet = FieldFacet(sort_field, reverse=is_reverse)
+            search_results = searcher.search(query, sortedby=facet, limit=limit)
+        else:
+            search_results = searcher.search(query, limit=limit)
+
+        total_count = search_results.scored_length()
+
+        for result in search_results:
+            results.append(dict(result))
+
+    return jsonify({
+        "results": results,
+        "total_count": total_count,
+        "schema_fields": list(schema_fields.keys())
+    })
+
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5051)
