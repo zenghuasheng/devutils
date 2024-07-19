@@ -12,7 +12,7 @@ def run_command(command, cwd=None):
     return result.stdout.strip()
 
 
-def update_repository(repo_path, branch, commit_message):
+def update_repository(repo_path, branch, commit_message, dependency_repo=None, dependency_repo_commit_id=None):
     print(f"Updating repository at {repo_path}")
 
     # Fetch all branches and tags
@@ -28,6 +28,9 @@ def update_repository(repo_path, branch, commit_message):
 
     # Change to the specified branch
     run_command(f"git checkout {branch}", cwd=repo_path)
+
+    if dependency_repo is not None:
+        update_dependency_in_go_mod(repo_path, dependency_repo, dependency_repo_commit_id)
 
     # Check if the working directory is clean
     status = run_command("git status --porcelain", cwd=repo_path)
@@ -64,6 +67,17 @@ def is_latest_commit_in_go_mod(repo_path, dependency, commit_id):
     return False
 
 
+def update_dependency_in_go_mod(repo_path, dependency, commit_id_common):
+    # repo_path_project = "/Users/xhs/go/src/github.com/bangwork/ones-project-api"
+    if commit_id_common is not None or not is_latest_commit_in_go_mod(
+            # "github.com/bangwork/ones-api-biz-common"
+            repo_path, dependency, commit_id_common):
+        run_command(f"go get {dependency}@{commit_id_common}", cwd=repo_path)
+    # 执行 go mod tidy
+    run_command("go mod tidy", cwd=repo_path)
+    run_command("CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /tmp/", cwd=repo_path)
+
+
 def main(branch, commit_message):
     # Update ones-api-biz-common repository
     repo_path_common = "/Users/xhs/go/src/github.com/bangwork/ones-api-biz-common"
@@ -71,22 +85,15 @@ def main(branch, commit_message):
 
     # Update ones-project-api repository
     repo_path_project = "/Users/xhs/go/src/github.com/bangwork/ones-project-api"
-    if commit_id_common is not None or not is_latest_commit_in_go_mod(
-            repo_path_project, "github.com/bangwork/ones-api-biz-common", commit_id_common):
-        run_command(f"go get github.com/bangwork/ones-api-biz-common@{commit_id_common}", cwd=repo_path_project)
-    # 执行 go mod tidy
-    run_command("go mod tidy", cwd=repo_path_project)
-    run_command("CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /tmp/", cwd=repo_path_project)
-    commit_id_project = update_repository(repo_path_project, branch, commit_message)
+    dependency_repo = "github.com/bangwork/ones-api-biz-common"
+    dependency_repo_commit_id = commit_id_common
+    commit_id_project = update_repository(repo_path_project, branch, commit_message, dependency_repo,
+                                          dependency_repo_commit_id)
     # Update bang-api-gomod repository
     repo_path_bang = "/Users/xhs/go/src/github.com/bangwork/bang-api-gomod"
-    if commit_id_project is not None or not is_latest_commit_in_go_mod(
-            repo_path_bang, "github.com/bangwork/ones-project-api", commit_id_project):
-        run_command(f"go get github.com/bangwork/ones-project-api@{commit_id_project}", cwd=repo_path_bang)
-    # 执行 go mod tidy
-    run_command("go mod tidy", cwd=repo_path_bang)
-    run_command("CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /tmp/", cwd=repo_path_bang)
-    update_repository(repo_path_bang, branch, commit_message)
+    dependency_repo = "github.com/bangwork/ones-project-api"
+    dependency_repo_commit_id = commit_id_project
+    update_repository(repo_path_bang, branch, commit_message, dependency_repo, dependency_repo_commit_id)
 
 
 if __name__ == "__main__":
