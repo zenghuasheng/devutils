@@ -1,8 +1,11 @@
+import os
 import subprocess
 
 
 def run_command(command, cwd=None):
-    result = subprocess.run(command, shell=True, cwd=cwd, capture_output=True, text=True)
+    current_env = os.environ.copy()
+    result = subprocess.run(command, shell=True, cwd=cwd, capture_output=True, text=True, env=current_env)
+    print(f"Running command: {command}")
     if result.returncode != 0:
         print(f"Error running command: {command}\n{result.stderr}")
         exit(1)
@@ -41,7 +44,13 @@ def update_repository(repo_path, branch, commit_message):
 
 def is_latest_commit_in_go_mod(repo_path, dependency, commit_id):
     go_mod_content = run_command("cat go.mod", cwd=repo_path)
-    return f"{dependency} {commit_id}" in go_mod_content
+    dependency_line = f"\t{dependency} v"
+    for line in go_mod_content.split('\n'):
+        if line.startswith(dependency_line):
+            parts = line.split('-')
+            if parts[-1] == commit_id[:12]:  # Check if the commit ID matches the short format
+                return True
+    return False
 
 
 def main(branch, commit_message):
@@ -54,6 +63,8 @@ def main(branch, commit_message):
     if not is_latest_commit_in_go_mod(repo_path_project, "github.com/bangwork/ones-api-biz-common", commit_id_common):
         run_command(f"go get github.com/bangwork/ones-api-biz-common@{commit_id_common}", cwd=repo_path_project)
 
+    # 执行 go mod tidy
+    run_command("go mod tidy", cwd=repo_path_project)
     run_command("CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /tmp/", cwd=repo_path_project)
     commit_id_project = update_repository(repo_path_project, branch, commit_message)
 
@@ -62,6 +73,8 @@ def main(branch, commit_message):
     if not is_latest_commit_in_go_mod(repo_path_bang, "github.com/bangwork/ones-project-api", commit_id_project):
         run_command(f"go get github.com/bangwork/ones-project-api@{commit_id_project}", cwd=repo_path_bang)
 
+    # 执行 go mod tidy
+    run_command("go mod tidy", cwd=repo_path_bang)
     run_command("CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /tmp/", cwd=repo_path_bang)
     update_repository(repo_path_bang, branch, commit_message)
 
