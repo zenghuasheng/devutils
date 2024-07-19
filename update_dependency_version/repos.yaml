@@ -1,0 +1,11 @@
+repositories:
+  ones-api-biz-common:
+    path: /Users/xhs/go/src/github.com/bangwork/ones-api-biz-common
+  ones-project-api:
+    path: /Users/xhs/go/src/github.com/bangwork/ones-project-api
+    dependencies:
+      - name: ones-api-biz-common
+  bang-api:
+    path: /Users/xhs/go/src/github.com/bangwork/bang-api-gomod
+    dependencies:
+      - name: ones-project-api

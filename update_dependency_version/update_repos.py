@@ -1,5 +1,8 @@
+import argparse
 import os
 import subprocess
+
+import yaml
 
 
 def run_command(command, cwd=None):
@@ -12,7 +15,7 @@ def run_command(command, cwd=None):
     return result.stdout.strip()
 
 
-def update_repository(repo_path, branch, commit_message, dependency_repo=None, dependency_repo_commit_id=None):
+def update_repository(repo_path, branch, commit_message, dependencies=None):
     print(f"Updating repository at {repo_path}")
 
     # Fetch all branches and tags
@@ -29,8 +32,10 @@ def update_repository(repo_path, branch, commit_message, dependency_repo=None, d
     # Change to the specified branch
     run_command(f"git checkout {branch}", cwd=repo_path)
 
-    if dependency_repo is not None:
-        update_dependency_in_go_mod(repo_path, dependency_repo, dependency_repo_commit_id)
+    if dependencies:
+        for dependency in dependencies:
+            dependency_repo = f"github.com/bangwork/{dependency['name']}"
+            update_dependency_in_go_mod(repo_path, dependency_repo, dependency['commit_id'])
 
     # Check if the working directory is clean
     status = run_command("git status --porcelain", cwd=repo_path)
@@ -67,43 +72,49 @@ def is_latest_commit_in_go_mod(repo_path, dependency, commit_id):
     return False
 
 
-def update_dependency_in_go_mod(repo_path, dependency, commit_id_common):
-    # repo_path_project = "/Users/xhs/go/src/github.com/bangwork/ones-project-api"
-    if commit_id_common is not None or not is_latest_commit_in_go_mod(
-            # "github.com/bangwork/ones-api-biz-common"
-            repo_path, dependency, commit_id_common):
-        run_command(f"go get {dependency}@{commit_id_common}", cwd=repo_path)
+def update_dependency_in_go_mod(repo_path, dependency, commit_id):
+    if commit_id is not None or not is_latest_commit_in_go_mod(repo_path, dependency, commit_id):
+        run_command(f"go get {dependency}@{commit_id}", cwd=repo_path)
     # 执行 go mod tidy
     run_command("go mod tidy", cwd=repo_path)
-    run_command("CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /tmp/", cwd=repo_path)
+
+    if os.path.exists(os.path.join(repo_path, 'main.go')):
+        run_command("CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /tmp/", cwd=repo_path)
 
 
-def main(branch, commit_message):
-    # Update ones-api-biz-common repository
-    repo_path_common = "/Users/xhs/go/src/github.com/bangwork/ones-api-biz-common"
-    commit_id_common = update_repository(repo_path_common, branch, commit_message)
+def load_config(config_path):
+    with open(config_path, 'r') as file:
+        return yaml.safe_load(file)
 
-    # Update ones-project-api repository
-    repo_path_project = "/Users/xhs/go/src/github.com/bangwork/ones-project-api"
-    dependency_repo = "github.com/bangwork/ones-api-biz-common"
-    dependency_repo_commit_id = commit_id_common
-    commit_id_project = update_repository(repo_path_project, branch, commit_message, dependency_repo,
-                                          dependency_repo_commit_id)
-    # Update bang-api-gomod repository
-    repo_path_bang = "/Users/xhs/go/src/github.com/bangwork/bang-api-gomod"
-    dependency_repo = "github.com/bangwork/ones-project-api"
-    dependency_repo_commit_id = commit_id_project
-    update_repository(repo_path_bang, branch, commit_message, dependency_repo, dependency_repo_commit_id)
+
+def main(branch, commit_message, config_path='repos.yaml'):
+    config = load_config(config_path)
+    repositories = config['repositories']
+
+    commit_ids = {}
+    for repo_name, repo_info in repositories.items():
+        repo_path = repo_info['path']
+        dependencies = repo_info.get('dependencies', [])
+
+        for dependency in dependencies:
+            dependency_name = dependency['name']
+            dependency['commit_id'] = commit_ids.get(dependency_name)
+
+        commit_id = update_repository(repo_path, branch, commit_message, dependencies)
+        if commit_id:
+            commit_ids[repo_name] = commit_id
+
+
+def parse_command_line_args():
+    parser = argparse.ArgumentParser(description="cascading update go repo dependency version")
+    parser.add_argument("branch", help="branch to update")
+    parser.add_argument("commit_message", help="commit message for the update")
+    args = parser.parse_args()
+    return args
 
 
 if __name__ == "__main__":
-    import sys
-
-    if len(sys.argv) != 3:
-        print("Usage: python update_repos.py <branch> <commit_message>")
-        exit(1)
-
-    branch = sys.argv[1]
-    commit_message = sys.argv[2]
-
-    main(branch, commit_message)
+    args = parse_command_line_args()
+    # config_path 和 update_repos.py 在同一目录下
+    config_path = os.path.join(os.path.dirname(__file__), 'repos.yaml')
+    main(args.branch, args.commit_message, config_path=config_path)
