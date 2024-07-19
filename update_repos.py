@@ -15,6 +15,17 @@ def run_command(command, cwd=None):
 def update_repository(repo_path, branch, commit_message):
     print(f"Updating repository at {repo_path}")
 
+    # Fetch all branches and tags
+    run_command("git fetch --all", cwd=repo_path)
+
+    # Check if the branch exists
+    branches = run_command("git branch -a", cwd=repo_path).split('\n')
+    branch_exists = any(branch.strip() == f"remotes/origin/{branch}" or branch.strip() == branch for branch in branches)
+
+    if not branch_exists:
+        print(f"Branch {branch} does not exist in repository {repo_path}")
+        return None
+
     # Change to the specified branch
     run_command(f"git checkout {branch}", cwd=repo_path)
 
@@ -60,19 +71,18 @@ def main(branch, commit_message):
 
     # Update ones-project-api repository
     repo_path_project = "/Users/xhs/go/src/github.com/bangwork/ones-project-api"
-    if not is_latest_commit_in_go_mod(repo_path_project, "github.com/bangwork/ones-api-biz-common", commit_id_common):
+    if commit_id_common is not None or not is_latest_commit_in_go_mod(
+            repo_path_project, "github.com/bangwork/ones-api-biz-common", commit_id_common):
         run_command(f"go get github.com/bangwork/ones-api-biz-common@{commit_id_common}", cwd=repo_path_project)
-
     # 执行 go mod tidy
     run_command("go mod tidy", cwd=repo_path_project)
     run_command("CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /tmp/", cwd=repo_path_project)
     commit_id_project = update_repository(repo_path_project, branch, commit_message)
-
     # Update bang-api-gomod repository
     repo_path_bang = "/Users/xhs/go/src/github.com/bangwork/bang-api-gomod"
-    if not is_latest_commit_in_go_mod(repo_path_bang, "github.com/bangwork/ones-project-api", commit_id_project):
+    if commit_id_project is not None or not is_latest_commit_in_go_mod(
+            repo_path_bang, "github.com/bangwork/ones-project-api", commit_id_project):
         run_command(f"go get github.com/bangwork/ones-project-api@{commit_id_project}", cwd=repo_path_bang)
-
     # 执行 go mod tidy
     run_command("go mod tidy", cwd=repo_path_bang)
     run_command("CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /tmp/", cwd=repo_path_bang)
