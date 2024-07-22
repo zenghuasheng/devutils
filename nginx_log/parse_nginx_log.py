@@ -81,11 +81,14 @@ def parse_log_file(file_path, log_pattern, schema_fields, format_fields, limit=0
     lines = []
     with open(file_path, 'r', encoding='utf-8') as log_file:
         i = 0
+        # 每隔 1000 行，打印一次进度
         for line in log_file:
             lines.append(line)
             i += 1
             if 0 < limit < i:
                 break
+            if i % 1000 == 0:
+                print(f"Parsing line {i}")
             match = compiled_pattern.match(line.strip())
             if match:
                 # parsed_lines.append({field: match.group(i + 1) for i, field in enumerate(schema_fields)})
@@ -222,14 +225,18 @@ def confirm_parse():
     else:
         ix = index.open_dir(index_subdir)
 
-    # Store parsed logs into Whoosh index
-    with ix.writer() as writer:
-        for line in parsed_lines:
-            writer.add_document(**line)
-
     # 保存 schema 到 log_subdir 目录，之后查询时需要用到
     with open(os.path.join(log_subdir, "schema.txt"), "w") as f:
         f.write(str(fields))
+    # Store parsed logs into Whoosh index
+    with ix.writer() as writer:
+        # 每隔 1000 行，打印一次进度
+        i = 0
+        for line in parsed_lines:
+            i += 1
+            writer.add_document(**line)
+            if i % 100 == 0:
+                print(f"Indexing line {i}")
 
     return jsonify({
         "status": "success",
