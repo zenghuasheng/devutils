@@ -61,8 +61,13 @@ for match in matches:
 
 # 按 User-Agent 分布进行统计
 if user_agent_counts:
+    max_count = max(user_agent_counts.values())
+    scale_factor = 50 / max_count  # 控制柱状图的宽度
+
     print(f"User-Agent 分布（过滤接口：{api_path}）：\n")
     for user_agent, count in user_agent_counts.items():
-        print(f"{user_agent}: {count}")
+        bar = '*' * int(count * scale_factor)
+        truncated_user_agent = (user_agent[:10] + '...') if len(user_agent) > 10 else user_agent
+        print(f"{truncated_user_agent}: {bar} ({count}) - {user_agent}")
 else:
     print(f"未找到匹配接口 {api_path} 的请求")
