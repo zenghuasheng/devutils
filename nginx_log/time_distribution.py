@@ -2,12 +2,8 @@
 
 import sys
 import re
-from collections import Counter, defaultdict
+from collections import defaultdict
 from datetime import datetime
-import matplotlib
-
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
 
 # 检查是否提供了日志文件路径
 if len(sys.argv) < 2:
@@ -41,12 +37,11 @@ sorted_times = sorted(time_counts.items())
 # 分离时间和计数
 times, counts = zip(*sorted_times)
 
-# 绘制时间线分布图
-plt.figure(figsize=(10, 6))
-plt.plot(times, counts, marker='o')
-plt.xlabel('Time')
-plt.ylabel('Number of Requests')
-plt.title('Number of Requests per Second')
-plt.gcf().autofmt_xdate()
-plt.savefig('output.png')
-# plt.show()  # 不再需要
+# 文本方式的柱状图
+max_count = max(counts)
+scale_factor = 50 / max_count  # 控制柱状图的宽度
+
+print("时间线分布图（每秒请求数量）：\n")
+for time, count in sorted_times:
+    bar = '*' * int(count * scale_factor)
+    print(f"{time}: {bar} ({count})")
