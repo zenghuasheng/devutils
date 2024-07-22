@@ -19,11 +19,16 @@ def update_repository(repo_path, branch, commit_message, dependencies=None):
     print(f"Updating repository at {repo_path}")
 
     # Fetch all branches and tags
-    run_command("git fetch --all", cwd=repo_path)
+    run_command("git fetch origin", cwd=repo_path)
 
     # Check if the branch exists
     branches = run_command("git branch -a", cwd=repo_path).split('\n')
-    branch_exists = any(branch.strip() == f"remotes/origin/{branch}" or branch.strip() == branch for branch in branches)
+    # branch_exists = any(branch.strip() == f"remotes/origin/{branch}" or branch.strip() == branch for branch in branches)
+    branch_exists = False
+    for b in branches:
+        if b.strip() == f"remotes/origin/{branch}" or b.strip() == f"* {branch}" or b.strip() == branch:
+            branch_exists = True
+            break
 
     if not branch_exists:
         print(f"Branch {branch} does not exist in repository {repo_path}")
@@ -73,8 +78,10 @@ def is_latest_commit_in_go_mod(repo_path, dependency, commit_id):
 
 
 def update_dependency_in_go_mod(repo_path, dependency, commit_id):
-    if commit_id is not None or not is_latest_commit_in_go_mod(repo_path, dependency, commit_id):
-        run_command(f"go get {dependency}@{commit_id}", cwd=repo_path)
+    if commit_id is not None:
+        if not is_latest_commit_in_go_mod(repo_path, dependency, commit_id):
+            print(f"Updating dependency {dependency} to commit ID {commit_id} in go.mod")
+            run_command(f"go get {dependency}@{commit_id}", cwd=repo_path)
     # 执行 go mod tidy
     run_command("go mod tidy", cwd=repo_path)
 
