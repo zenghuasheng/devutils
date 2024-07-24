@@ -278,7 +278,8 @@ for url in log_data.split('\n'):
     except ValueError:
         continue
 
-    request = fields[6].strip("\"")
+    # request = fields[6].strip("\"")
+    request = fields[9].strip("\"")
     url_counts[request] += 1
     url_times[request].append(request_time)
 

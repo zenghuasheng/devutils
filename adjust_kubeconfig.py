@@ -99,7 +99,12 @@ def modify_api_common_config(file_path):
           done
         }
 
+
+        {{ if eq $config.isDev "true" }}
+        sleep infinity
+        {{ else }}
         loop_check_service_health $@
+        {{ end }}
 """
 
     # 写回原文件
@@ -113,18 +118,21 @@ def replace_esn_shell():
     po = get_k8s_pod()
     # kubectl cp ones-installer/installer-api-5fbd76fffb-pmf5m:/data/ones/ones-ai-k8s/apps/ones/v1/base/k8s-v1.16/api-common-config.yaml ./api-common-config.yaml
     cmd = f"kubectl cp ones-installer/{po}:/data/ones/ones-ai-k8s/apps/ones/v1/base/k8s-v1.16/api-common-config.yaml " \
-          f"./api-common-config.yaml "
+          f"/Users/xhs/go_workspace/aidemo/api-common-config.yaml "
+    os.system(cmd)
+    cmd = f"kubectl cp ones-installer/{po}:/data/ones/ones-ai-k8s/apps/ones/v1/base/k8s-v1.16/api-common-config.yaml " \
+          f"/Users/xhs/go_workspace/aidemo/api-common-config_bak.yaml "
     os.system(cmd)
     # 修改 api-common-config.yaml 文件
-    modify_api_common_config("./api-common-config.yaml")
+    modify_api_common_config("/Users/xhs/go_workspace/aidemo/api-common-config.yaml")
     # 复制回去
-    cmd = f"kubectl cp ./api-common-config.yaml ones-installer/{po}:/data/ones/ones-ai-k8s/apps/ones/v1/base/k8s-v1.16/api-common-config.yaml"
+    cmd = f"kubectl cp /Users/xhs/go_workspace/aidemo/api-common-config.yaml ones-installer/{po}:/data/ones/ones-ai-k8s/apps/ones/v1/base/k8s-v1.16/api-common-config.yaml"
     os.system(cmd)
     # 在容器执行 make setup-ones
     cmd = f"kubectl exec -it {po} -n ones-installer -- make setup-ones"
     os.system(cmd)
     # 删除 api-common-config.yaml 文件
-    os.system("rm ./api-common-config.yaml")
+    os.system("rm /Users/xhs/go_workspace/aidemo/api-common-config.yaml")
 
 
 def get_available_envs(config_dir):
