@@ -37,6 +37,9 @@ def update_repository(repo_path, branch, commit_message, dependencies=None):
     # Change to the specified branch
     run_command(f"git checkout {branch}", cwd=repo_path)
 
+    # git pull origin branch
+    run_command(f"git pull origin {branch}", cwd=repo_path)
+
     if dependencies:
         for dependency in dependencies:
             dependency_repo = f"github.com/bangwork/{dependency['name']}"
