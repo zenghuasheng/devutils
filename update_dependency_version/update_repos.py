@@ -47,17 +47,11 @@ def update_repository(repo_path, branch, commit_message, dependencies=None):
 
     # Check if the working directory is clean
     status = run_command("git status --porcelain", cwd=repo_path)
-    if status == "":
-        # Working directory is clean, get the latest commit ID
-        commit_id = run_command("git log -1 --pretty=format:%H", cwd=repo_path)
-        print(f"Latest commit ID: {commit_id}")
-        return commit_id
-
-    # Stage all changes
-    run_command("git add .", cwd=repo_path)
-
-    # Commit changes
-    run_command(f"git commit -m \"{commit_message}\"", cwd=repo_path)
+    if status != "":
+        # Stage all changes
+        run_command("git add .", cwd=repo_path)
+        # Commit changes
+        run_command(f"git commit -m \"{commit_message}\"", cwd=repo_path)
 
     # Push changes
     run_command(f"git push origin {branch}", cwd=repo_path)
