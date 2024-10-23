@@ -11,6 +11,9 @@ def adjust_kubeconfig(config_file, target_path, new_ip):
         print("No new IP address provided, skip adjusting kubeconfig")
         return
     # 读取 YAML 文件内容
+    # 判断 config_file 是否存在
+    if not os.path.exists(config_file):
+        raise Exception(f"File not found: {config_file}")
     with open(config_file, 'r') as f:
         kubeconfig = yaml.safe_load(f)
 
@@ -165,13 +168,8 @@ def parse_command_line_args(kubeconfig_dir):
 
 def copy_remote_kubeconfig(remote_host, remote_path, local_path):
     command = ["rsync", "-a", f"{remote_host}:{remote_path}", local_path]
-    try:
-        subprocess.run(command, check=True)
-        print("Kubeconfig files copied successfully.")
-    except subprocess.CalledProcessError as e:
-        print(f"Error: {e}")
-        print("Failed to copy kubeconfig files.")
-
+    subprocess.run(command, check=True)
+    print("Kubeconfig files copied successfully.")
 
 def get_env_configs(directory, need_split=True):
     env_configs = {}
