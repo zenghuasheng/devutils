@@ -54,7 +54,7 @@ def check_sync_status(bin_name, ip, username):
             return True
 
 
-def parse_ssh_config():
+def parse_ssh_config(service_name):
     ssh_config_path = os.path.expanduser("~/.ssh/config")
     ssh_config = {}
     with open(ssh_config_path, 'r') as f:
@@ -62,7 +62,10 @@ def parse_ssh_config():
             line = line.strip()
             if line.startswith("Host "):
                 current_host = line.split(" ")[1]
-                parts = current_host.split("-deployment.okteto")
+                if service_name == 'ones-operator':
+                    parts = current_host.split(".okteto")
+                else:
+                    parts = current_host.split("-deployment.okteto")
                 ssh_config[parts[0]] = current_host
     return ssh_config
 
@@ -84,24 +87,33 @@ if __name__ == '__main__':
         current_env = os.environ.copy()
         # 检查参数
         args = parse_command_line_args()
-        service_name = get_service_name_from_path()
-        if not service_name:
+        path_name = get_service_name_from_path()
+        print(f"path_name: {path_name}")
+        if not path_name:
             exit_with_error("无法根据路径找到服务名")
-        ssh_config = parse_ssh_config()
+        ssh_config = parse_ssh_config(path_name)
         service_path_name_map = {
             "bang-api-gomod": "project-api",
+            "ones-project-api": "ones-project-api",
             "bang-api-docker": "project-api",
             "bang-api": "project-api",
+            "wiki-api": "wiki-api",
             "kilob-sync": "kilob-sync",
             "ones-platform-api": "ones-platform-api",
             "ones-identity-api": "ones-identity-api",
             "events-api": "events-api",
+            "ones-operator": "ones-operator",
+            "ones-bi-sync-bi-sync-etl": "ones-bi-sync-etl",
         }
-        if service_name in service_path_name_map:
-            service_name = service_path_name_map[service_name]
+        service_name = path_name
+        if path_name in service_path_name_map:
+            service_name = service_path_name_map[path_name]
+        else:
+            exit_with_error("无法找到对应的服务名")
         print(f"service_name: {service_name}")
         ip = ssh_config.get(service_name)
         if not ip:
+            print(ssh_config)
             exit_with_error("无法根据服务名找到 ssh 配置，可能还没执行 okteto up，请检查 ~/.ssh/config 文件。")
         bin_name = 'debug_bin'
         username = 'root'
@@ -113,8 +125,13 @@ if __name__ == '__main__':
             current_env['CGO_ENABLED'] = '0'
             current_env['GOOS'] = 'linux'
             current_env['GOARCH'] = 'amd64'
+            build_params = ['go', 'build', '-o', bin_name, '-gcflags', 'all=-N -l']
+            if service_name == "ones-operator":
+                # cmd/manager/main.go
+                build_params.append('cmd/manager/main.go')
             check_result = subprocess.run(
-                ['go', 'build', '-o', bin_name, '-gcflags', 'all=-N -l'],
+                build_params
+                ,
                 env=current_env
             )
 

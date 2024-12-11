@@ -166,10 +166,71 @@ def parse_command_line_args(kubeconfig_dir):
     return args
 
 
-def copy_remote_kubeconfig(remote_host, remote_path, local_path):
-    command = ["rsync", "-a", f"{remote_host}:{remote_path}", local_path]
-    subprocess.run(command, check=True)
+# def copy_remote_kubeconfig(remote_path, local_path):
+# remote_kubeconfig_path = os.getenv("REMOTE_KUBECONFIG_PATH")
+#     remote_host = os.getenv("SYNC_KUBECONFIG_HOST")
+#     command = ["rsync", "-a", f"{remote_host}:{remote_path}", local_path]
+#     subprocess.run(command, check=True)
+#     print("Kubeconfig files copied successfully.")
+
+def copy_remote_kubeconfig(local_path):
+    auth_id = os.getenv("THINK_ID")
+    if not auth_id:
+        print("Please set THINK_ID")
+        exit(1)
+    url = f"http://task.xiaohuasheng.cc/api/think?id={auth_id}&page=1&search="
+    headers = {
+        'Accept': 'application/json, text/plain, */*',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Connection': 'keep-alive',
+        'Referer': 'http://task.xiaohuasheng.cc/',
+    }
+    response = requests.get(url, headers=headers, verify=False)
+    json_data = response.json()
+    # 遍历 list，找出 name: 开头的记录
+    kube_configs = {}
+    for item in json_data['data']['list']:
+        if not item['content'].startswith("name:"):
+            continue
+        contentParts = item['content'].split('\n')
+        namePart = contentParts[0]
+        ipPart = contentParts[1]
+        configPart = contentParts[2:]
+        name = namePart.split(":")[1].strip()
+        ip = ipPart.split(":")[1].strip()
+        # 如果有相同名字的，取 item['create_time'] 较大的一个
+        if name not in kube_configs or item['create_time'] > kube_configs[name]['create_time']:
+            kube_configs[name] = {
+                "id": item['id'],
+                "ip": ip,
+                "config": "\n".join(configPart),
+                "create_time": item['create_time']
+            }
+    # 遍历 kube_configs，写入 local_path
+    # 120.79.159.211_p1109-k3s-5
+    for name, config in kube_configs.items():
+        with open(f"{local_path}/{config['ip']}_{name}", 'w') as f:
+            f.write(config['config'])
+            print(f"Kubeconfig file {config['ip']}_{name} saved to {local_path}")
+            # 删除远程记录
+            delete_remote_kubeconfig(auth_id, config['id'])
     print("Kubeconfig files copied successfully.")
+
+
+def delete_remote_kubeconfig(auth_id, think_id):
+    url = f"http://task.xiaohuasheng.cc/api/think?id={auth_id}&think_id={think_id}"
+    headers = {
+        'Accept': 'application/json, text/plain, */*',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Connection': 'keep-alive',
+        'Content-Length': '0',
+        'Content-Type': 'text/plain;charset=UTF-8',
+        'Origin': 'http://task.xiaohuasheng.cc',
+        'Referer': 'http://task.xiaohuasheng.cc/',
+    }
+    response = requests.delete(url, headers=headers, verify=False)
+    print("Kubeconfig files deleted successfully.")
+
 
 def get_env_configs(directory, need_split=True):
     env_configs = {}
@@ -208,20 +269,17 @@ def get_server_public_ip(url):
 # scp -o StrictHostKeyChecking=no ~/.kube/config root@your_ip:/root/kubeconfig/$(curl -s ip.me)_p1103-k3s-2
 if __name__ == "__main__":
     kubeconfig_dir = os.getenv("KUBECONFIG_DIR")
-    sync_kubeconfig_host = os.getenv("SYNC_KUBECONFIG_HOST")
-    remote_kubeconfig_path = os.getenv("REMOTE_KUBECONFIG_PATH")
     local_kubeconfig_path = os.getenv("LOCAL_KUBECONFIG_PATH")
     # 如果读不到，退出
-    if not kubeconfig_dir or not sync_kubeconfig_host or not remote_kubeconfig_path or not local_kubeconfig_path:
-        print('''Please set KUBECONFIG_DIR, SYNC_KUBECONFIG_HOST, REMOTE_KUBECONFIG_PATH and LOCAL_KUBECONFIG_PATH
+    if not kubeconfig_dir or not local_kubeconfig_path:
+        print('''Please set KUBECONFIG_DIR, REMOTE_KUBECONFIG_PATH and LOCAL_KUBECONFIG_PATH
 export KUBECONFIG_DIR=/Users/xhs/kubeconfig/
-export SYNC_KUBECONFIG_HOST=root@your_ip
 export REMOTE_KUBECONFIG_PATH=/root/kubeconfig
 export LOCAL_KUBECONFIG_PATH=/Users/xhs/kubeconfig_remote/
         ''')
         exit(1)
-    copy_remote_kubeconfig(sync_kubeconfig_host, remote_kubeconfig_path, local_kubeconfig_path)
-    remote_env_configs = get_env_configs(os.path.join(local_kubeconfig_path, os.path.basename(remote_kubeconfig_path)))
+    copy_remote_kubeconfig(local_kubeconfig_path)
+    remote_env_configs = get_env_configs(local_kubeconfig_path)
     local_env_configs = get_env_configs(kubeconfig_dir, need_split=False)
     for env_name, config_info in remote_env_configs.items():
         # 取出本地的
