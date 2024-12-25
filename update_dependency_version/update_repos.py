@@ -15,7 +15,7 @@ def run_command(command, cwd=None):
     return result.stdout.strip()
 
 
-def update_repository(repo_path, branch, commit_message, dependencies=None):
+def update_repository(repo_path, branch, commit_message, dependencies=None, merge_master=False):
     print(f"Updating repository at {repo_path}")
 
     # Fetch all branches and tags
@@ -37,8 +37,25 @@ def update_repository(repo_path, branch, commit_message, dependencies=None):
     # Change to the specified branch
     run_command(f"git checkout {branch}", cwd=repo_path)
 
+    # 如果有未提交的代码，直接退出
+    status = run_command("git status --porcelain", cwd=repo_path)
+    if status != "":
+        print(f"Working directory is not clean, please commit or stash your changes first")
+        return None
+
     # git pull origin branch
     run_command(f"git pull origin {branch}", cwd=repo_path)
+
+    # Merge master
+    if merge_master:
+        # 先切换到 master 分支
+        run_command("git checkout master", cwd=repo_path)
+        # 拉取最新代码
+        run_command("git pull origin master", cwd=repo_path)
+        # 切换回目标分支
+        run_command(f"git checkout {branch}", cwd=repo_path)
+        # 合并 master 分支
+        run_command("git merge master", cwd=repo_path)
 
     if dependencies:
         for dependency in dependencies:
@@ -91,7 +108,9 @@ def load_config(config_path):
         return yaml.safe_load(file)
 
 
-def main(branch, commit_message, config_path='repos.yaml'):
+def main(args, config_path='repos.yaml'):
+    branch = args.branch
+    commit_message = args.commit_message
     config = load_config(config_path)
     repositories = config['repositories']
 
@@ -104,7 +123,7 @@ def main(branch, commit_message, config_path='repos.yaml'):
             dependency_name = dependency['name']
             dependency['commit_id'] = commit_ids.get(dependency_name)
 
-        commit_id = update_repository(repo_path, branch, commit_message, dependencies)
+        commit_id = update_repository(repo_path, branch, commit_message, dependencies, merge_master=args.merge_master)
         if commit_id:
             commit_ids[repo_name] = commit_id
 
@@ -113,6 +132,8 @@ def parse_command_line_args():
     parser = argparse.ArgumentParser(description="cascading update go repo dependency version")
     parser.add_argument("branch", help="branch to update")
     parser.add_argument("commit_message", help="commit message for the update")
+    # 加一个是否 merge master 的参数
+    parser.add_argument("--merge-master", action="store_true", help="merge master branch before updating")
     args = parser.parse_args()
     return args
 
@@ -121,4 +142,4 @@ if __name__ == "__main__":
     args = parse_command_line_args()
     # config_path 和 update_repos.py 在同一目录下
     config_path = os.path.join(os.path.dirname(__file__), 'repos.yaml')
-    main(args.branch, args.commit_message, config_path=config_path)
+    main(args, config_path=config_path)
